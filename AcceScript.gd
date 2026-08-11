@@ -26,9 +26,9 @@ func _physics_process(delta: float) -> void:
 	var ay = (vel_y - vel_y_pre)/delta
 	var az = (vel_z - vel_z_pre)/delta
 	
-	var a = global_transform.basis.inverse()*Vector3(ax, ay, az)
-	
-	var f = a - g
+	var a = body.global_transform.basis.inverse()*Vector3(ax, ay, az)
+	var g_local = body.global_transform.basis.inverse() * g
+	var f = a - g_local
 	#print("fx ",f.x)
 	#print("fy ",f.y)
 	#print("fz ",f.z)
