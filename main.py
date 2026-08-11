@@ -12,7 +12,7 @@ ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
 drone_control_scheme.start(
-    y_start=0.0, y_end=50.0,
+    y_start=0.0, y_end=30,
     z_start=0.0, x_start=0.0,
     z_end=0.0, x_end=0.0,
     ang_start=0.0, ang_end=0.0
@@ -83,7 +83,7 @@ while True:
         vel_z = vel_z
     )
 
-    gyro = [rot_z, rot_y, rot_x]
+    gyro = [rot_z, rot_x, rot_y]
     #accel = [roll_acc, pitch_acc]
 
     ekf.predict(gyro, delta_t)

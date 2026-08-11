@@ -26,8 +26,8 @@ class controlScheme(ABC):
 class droneControlScheme(controlScheme):
     def __init__(self):
         self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(20, 2, 2)
-        self.p_controller_z = pid.PID(0.05, 0, 0, 30)
-        self.pi_controller_speed_z = pid.PID(0.05, 0.01, 0, 30)
+        self.p_controller_z = pid.PID(0.3, 0, 0, 30)
+        self.pi_controller_speed_z = pid.PID(0.1, 0.03, 0, 30)
 
         self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
         self.p_controller_x = pid.PID(0.05, 0, 0, 30)
@@ -40,14 +40,14 @@ class droneControlScheme(controlScheme):
         self.p_controller_angular = pid.PID(0.05, 0, 0, 30)
         self.pi_controller_angular_speed = pid.PID(0.05, 0.01, 0, 30)
 
-        self.yaw_P = pid.PID(0.05, 0, 0, 0)
-        self.yaw_PI = pid.PID(0.05, 0.01, 0, 0)
+        self.yaw_P = pid.PID(0.005, 0, 0, 0)
+        self.yaw_PI = pid.PID(0.005, 0.001, 0, 0)
 
         self.roll_P = pid.PID(0.05, 0, 0, 0)
-        self.roll_PI = pid.PID(0.05, 0.01, 0, 0)
+        self.roll_PI = pid.PID(0.005, 0.001, 0, 0)
 
-        self.pitch_P = pid.PID(0.05, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.05, 0.01, 0, 0)
+        self.pitch_P = pid.PID(0.005, 0, 0, 0)
+        self.pitch_PI = pid.PID(0.005, 0.001, 0, 0)
 
 
 
@@ -65,22 +65,27 @@ class droneControlScheme(controlScheme):
         self.yaw_PI.evaluate_error(error_p_yaw, speed_yaw)
         self.yaw_PI.evaluate_error_kp()
         self.yaw_PI.evaluate_error_ki()
+        self.yaw_PI.saturation_i(-5.0, 5.0)
         error_v_yaw = self.yaw_PI.evaluate_total_error()
 
-        self.roll_P.evaluate_error(error_vz, roll)
+        # Il Roll (inclinazione laterale) deve correggere l'errore lungo X
+        self.roll_P.evaluate_error(error_vx, roll)
         self.roll_P.evaluate_error_kp()
         error_p_roll = self.roll_P.evaluate_total_error()
         self.roll_PI.evaluate_error(error_p_roll, speed_roll)
         self.roll_PI.evaluate_error_kp()
         self.roll_PI.evaluate_error_ki()
+        self.roll_PI.saturation_i(-5.0, 5.0)
         error_v_roll = self.roll_PI.evaluate_total_error()
 
-        self.pitch_P.evaluate_error(error_vx, pitch)
+        # Il Pitch (inclinazione avanti/indietro) deve correggere l'errore lungo Z
+        self.pitch_P.evaluate_error(error_vz, pitch)
         self.pitch_P.evaluate_error_kp()
         error_p_pitch = self.pitch_P.evaluate_total_error()
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
         self.pitch_PI.evaluate_error_ki()
+        self.pitch_PI.saturation_i(-5.0, 5.0)
         error_v_pitch = self.pitch_PI.evaluate_total_error()
 
         return mixer(error_vy, error_v_yaw, error_v_roll, error_v_pitch)
@@ -100,6 +105,8 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_z.evaluate_error(error_py, state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
         self.pi_controller_speed_z.evaluate_error_ki()
+        self.pi_controller_speed_z.saturation_i(-20.0, 20.0)
+        print(self.pi_controller_speed_z.pid_i_result)
         error_vy = self.pi_controller_speed_z.evaluate_total_error()
 
         #CONTROLLO ZX
@@ -109,6 +116,7 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_x.evaluate_error(error_pz, state.vel_z)
         self.pi_controller_speed_x.evaluate_error_kp()
         self.pi_controller_speed_x.evaluate_error_ki()
+        self.pi_controller_speed_x.saturation_i(-20.0, 20.0)
         error_vz = self.pi_controller_speed_x.evaluate_total_error()
 
         self.p_controller_y.evaluate_error(target_x, state.pos_x)
@@ -117,6 +125,7 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_y.evaluate_error(error_px, state.vel_x)
         self.pi_controller_speed_y.evaluate_error_kp()
         self.pi_controller_speed_y.evaluate_error_ki()
+        self.pi_controller_speed_y.saturation_i(-20.0, 20.0)
         error_vx = self.pi_controller_speed_y.evaluate_total_error()
 
 
@@ -127,6 +136,7 @@ class droneControlScheme(controlScheme):
         self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
         self.pi_controller_angular_speed.evaluate_error_kp()
         self.pi_controller_angular_speed.evaluate_error_ki()
+        self.pi_controller_angular_speed.saturation_i(-30.0, 30.0)
         error_angular_v = self.pi_controller_angular_speed.evaluate_total_error()
 
         return error_vy, error_vx, error_vz, error_angular_v
