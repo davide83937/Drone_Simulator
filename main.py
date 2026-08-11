@@ -12,7 +12,7 @@ ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
 drone_control_scheme.start(
-    y_start=0.0, y_end=30,
+    y_start=0.0, y_end=10,
     z_start=0.0, x_start=0.0,
     z_end=0.0, x_end=0.0,
     ang_start=0.0, ang_end=0.0
@@ -105,10 +105,10 @@ while True:
 
 
 
-    dds.publish("w1", w1, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("w2", w2, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("w3", w3, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("w4", w4, DDS.DDS.DDS_TYPE_FLOAT)
+    #dds.publish("w1", w1, DDS.DDS.DDS_TYPE_FLOAT)
+    #dds.publish("w2", w2, DDS.DDS.DDS_TYPE_FLOAT)
+    #dds.publish("w3", w3, DDS.DDS.DDS_TYPE_FLOAT)
+    #dds.publish("w4", w4, DDS.DDS.DDS_TYPE_FLOAT)
     #print(tick)
     #print(f"rot_x = {rot_x}, rot_y = {rot_y}")
     #print(f"roll_gyro = {roll_gyro}, pitch_gyro = {pitch_gyro}, yaw_gyro = {yaw_gyro}")
