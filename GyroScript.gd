@@ -30,9 +30,17 @@ func _physics_process(delta: float) -> void:
 	#var g_local = body.transform.basis.inverse() * Vector3(gx, gy, gz)
 	
 	# 4. Pubblichiamo le velocità angolari locali in gradi al secondo (deg/s)
-	DDS.publish("gyro_x", DDS.DDS_TYPE_FLOAT, rad_to_deg(gx))
-	DDS.publish("gyro_y", DDS.DDS_TYPE_FLOAT, rad_to_deg(gy))
-	DDS.publish("gyro_z", DDS.DDS_TYPE_FLOAT, rad_to_deg(gz))
+	#DDS.publish("gyro_x", DDS.DDS_TYPE_FLOAT, rad_to_deg(gx))
+	#DDS.publish("gyro_y", DDS.DDS_TYPE_FLOAT, rad_to_deg(gy))
+	#DDS.publish("gyro_z", DDS.DDS_TYPE_FLOAT, rad_to_deg(gz))
+
+	# Ottieni la velocità angolare reale (rad/s) nel sistema locale del drone
+	var gyro_local = body.global_transform.basis.inverse() * body.angular_velocity
+	
+	# Pubblica in gradi al secondo per l'EKF
+	DDS.publish("gyro_x", DDS.DDS_TYPE_FLOAT, rad_to_deg(gyro_local.x))
+	DDS.publish("gyro_y", DDS.DDS_TYPE_FLOAT, rad_to_deg(gyro_local.y))
+	DDS.publish("gyro_z", DDS.DDS_TYPE_FLOAT, rad_to_deg(gyro_local.z))
 
 	# 5. Salviamo le rotazioni per il prossimo frame
 	rot_x_pre = rot_x

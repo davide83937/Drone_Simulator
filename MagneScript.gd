@@ -10,7 +10,7 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta: float) -> void:
-	var B_result = body.transform.basis.inverse()*B
+	var B_result = body.global_transform.basis.inverse()*B
 	DDS.publish("b_x", DDS.DDS_TYPE_FLOAT, B_result.x)
 	DDS.publish("b_y", DDS.DDS_TYPE_FLOAT, B_result.y)
 	DDS.publish("b_z", DDS.DDS_TYPE_FLOAT, B_result.z)
