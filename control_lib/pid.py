@@ -1,5 +1,7 @@
 from idlelib.configdialog import KeysPage
 
+from numpy import dtypes
+
 
 class PID:
     def __init__(self, Kp, Ki, Kd, target):
@@ -12,6 +14,7 @@ class PID:
         self.pid_p_result = 0
         self.pid_i_result = 0
         self.pid_d_result = 0
+
 
     def reset_integral(self):
         self.pid_i_result = 0
@@ -30,8 +33,8 @@ class PID:
             self.pid_p_result = min
 
 
-    def evaluate_error_ki(self):
-        self.pid_i_result += self.Ki * self.error
+    def evaluate_error_ki(self, dt):
+        self.pid_i_result += self.Ki * self.error*dt
 
 
     def saturation_i(self, min, max):
@@ -40,8 +43,8 @@ class PID:
         elif self.pid_i_result < min:
             self.pid_i_result = min
 
-    def evaluate_error_kd(self):
-        self.pid_d_result = self.Kd * (self.error - self.previousError)
+    def evaluate_error_kd(self, dt):
+        self.pid_d_result = self.Kd * (self.error - self.previousError)/dt
 
     def saturation_d(self, min, max):
         if self.pid_d_result > max:

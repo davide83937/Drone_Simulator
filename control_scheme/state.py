@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class State:
+    tick:float
     roll_acc: float
     pitch_acc: float
     yaw_magnetometer: float

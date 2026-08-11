@@ -36,7 +36,9 @@ dds.subscribe(['pos_z'])
 dds.subscribe(['vel_x'])
 dds.subscribe(['vel_y'])
 dds.subscribe(['vel_z'])
-
+dds.subscribe(['roll'])
+dds.subscribe(['pitch'])
+dds.subscribe(['yaw'])
 t = Time()
 t.start()
 
@@ -60,9 +62,12 @@ while True:
     vel_x = dds.read('vel_x')
     vel_y = dds.read('vel_y')
     vel_z = dds.read('vel_z')
+    roll = dds.read('roll')
+    pitch = dds.read('pitch')
+    yaw = dds.read('yaw')
 
     if None in (rot_x, rot_y, rot_z, a_x, a_y, a_z, b_x, b_y, b_z, delta_t,
-                pos_x, pos_y, pos_z, vel_x, vel_y, vel_z):
+                pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, roll, pitch, yaw):
         continue
 
     roll_acc, pitch_acc = sm.get_roll_pitch_accelerometer(a_x, a_y, a_z)
@@ -71,6 +76,7 @@ while True:
     angular_velocity = delta_yaw / delta_t
 
     current_state = state.State(
+        tick= tick,
         roll_acc=roll_acc,
         pitch_acc=pitch_acc,
         yaw_magnetometer=yaw_magnetometer,
@@ -89,16 +95,16 @@ while True:
     ekf.update(roll_acc, pitch_acc, yaw_magnetometer)
 
     # 1. ESTRAZIONE DEGLI ANGOLI PER IL CONTROLLORE (dall'EKF)
-    roll, pitch, yaw = ekf.get_euler_angles()
+    #roll, pitch, yaw = ekf.get_euler_angles()
 
-    print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+    #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
 
     # 2. LOOP ESTERNO: Genera spinta e inclinazioni desiderate (Target Roll/Pitch)
     target_thrust, target_roll, target_pitch, target_yaw_rate = drone_control_scheme.outer_loop(delta_t, current_state)
 
     # 3. LOOP INTERNO: Genera i comandi per i 4 motori
     w1, w2, w3, w4 = drone_control_scheme.inner_loop(
-        target_thrust, target_roll, target_pitch, target_yaw_rate,
+        current_state, target_thrust, target_roll, target_pitch, target_yaw_rate,
         roll, pitch, yaw,
         rot_z, rot_x, rot_y
     )
