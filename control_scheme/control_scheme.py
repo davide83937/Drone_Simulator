@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from control_lib import VirtualRobot
 from control_lib import pid
 from my_math import myMath
-from state import State
-from mixer import mixer
+from control_scheme.state import State
+from control_scheme.mixer import mixer
 
 class controlScheme(ABC):
     @abstractmethod
@@ -19,7 +19,7 @@ class controlScheme(ABC):
         pass
 
     @abstractmethod
-    def outer_loop(self, delta_t):
+    def outer_loop(self, delta_t, state):
         pass
 
 
@@ -85,46 +85,46 @@ class droneControlScheme(controlScheme):
 
         return mixer(error_vy, error_v_yaw, error_v_roll, error_v_pitch)
 
-    def outer_loop(self, delta_t):
+    def outer_loop(self, delta_t, state):
 
         #VIRTUAL ROBOTS
         n, target_y = self.virtualRobotAltitude.evaluate(delta_t)
         target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
-        state = self.virtualRobotAngular.evaluate(delta_t)
-        angle_target = state[0]
+        angle = self.virtualRobotAngular.evaluate(delta_t)
+        angle_target = angle[0]
 
         #CONTROLLO ALTITUDINE
-        self.p_controller_z.evaluate_error(target_y, State.pos_y)
+        self.p_controller_z.evaluate_error(target_y, state.pos_y)
         self.p_controller_z.evaluate_error_kp()
         error_py = self.p_controller_z.evaluate_total_error()
-        self.pi_controller_speed_z.evaluate_error(error_py, State.vel_y)
+        self.pi_controller_speed_z.evaluate_error(error_py, state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
         self.pi_controller_speed_z.evaluate_error_ki()
         error_vy = self.pi_controller_speed_z.evaluate_total_error()
 
         #CONTROLLO ZX
-        self.p_controller_x.evaluate_error(target_z, State.pos_z)
+        self.p_controller_x.evaluate_error(target_z, state.pos_z)
         self.p_controller_x.evaluate_error_kp()
         error_pz = self.p_controller_x.evaluate_total_error()
-        self.pi_controller_speed_x.evaluate_error(error_pz, State.vel_z)
+        self.pi_controller_speed_x.evaluate_error(error_pz, state.vel_z)
         self.pi_controller_speed_x.evaluate_error_kp()
         self.pi_controller_speed_x.evaluate_error_ki()
         error_vz = self.pi_controller_speed_x.evaluate_total_error()
 
-        self.p_controller_y.evaluate_error(target_x, State.pos_x)
+        self.p_controller_y.evaluate_error(target_x, state.pos_x)
         self.p_controller_y.evaluate_error_kp()
         error_px = self.p_controller_y.evaluate_total_error()
-        self.pi_controller_speed_y.evaluate_error(error_px, State.vel_x)
+        self.pi_controller_speed_y.evaluate_error(error_px, state.vel_x)
         self.pi_controller_speed_y.evaluate_error_kp()
         self.pi_controller_speed_y.evaluate_error_ki()
         error_vx = self.pi_controller_speed_y.evaluate_total_error()
 
 
         #CONTROLLO ANGOLARE
-        self.p_controller_angular.evaluate_error(angle_target, State.yaw_magnetometer)
+        self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
         self.p_controller_angular.evaluate_error_kp()
         error_angular = self.p_controller_angular.evaluate_total_error()
-        self.pi_controller_angular_speed.evaluate_error(error_angular, State.angular_velocity)
+        self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
         self.pi_controller_angular_speed.evaluate_error_kp()
         self.pi_controller_angular_speed.evaluate_error_ki()
         error_angular_v = self.pi_controller_angular_speed.evaluate_total_error()

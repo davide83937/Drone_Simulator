@@ -1,7 +1,7 @@
-import dataclasses
+from dataclasses import dataclass
 
 
-@dataclasses
+@dataclass
 class State:
     roll_acc: float
     pitch_acc: float

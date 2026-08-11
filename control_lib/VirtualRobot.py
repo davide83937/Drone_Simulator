@@ -123,6 +123,10 @@ class StraightLineMotion:
                                           self.vmax, self.accel, self.decel)
 
     def evaluate(self, delta_t):
+        # Protezione robusta per evitare divisioni per zero o valori invalidi
+        if self.distance <= 1e-6:
+            return self.start.flatten().tolist()
+
         self.virtual_robot.evaluate(delta_t)
         param = self.virtual_robot.p / self.distance
         new_pos = self.start + param * self.diff

@@ -11,6 +11,13 @@ dds.start('127.0.0.1', 4445)
 ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
+drone_control_scheme.start(
+    y_start=0.0, y_end=50.0,
+    z_start=0.0, x_start=0.0,
+    z_end=0.0, x_end=0.0,
+    ang_start=0.0, ang_end=0.0
+)
+
 previous_yaw = 0
 
 dds.subscribe(['tick'])
@@ -53,8 +60,8 @@ while True:
     vel_y = dds.read('vel_y')
     vel_z = dds.read('vel_z')
 
-
-    if None in (rot_x, rot_y, rot_z, a_x, a_y, a_z, b_x, b_y, b_z, delta_t):
+    if None in (rot_x, rot_y, rot_z, a_x, a_y, a_z, b_x, b_y, b_z, delta_t,
+                pos_x, pos_y, pos_z, vel_x, vel_y, vel_z):
         continue
 
     #roll_gyro, pitch_gyro, yaw_gyro = sm.process_gyro_data(rot_x, rot_y, rot_z, delta_t)
@@ -63,7 +70,7 @@ while True:
     delta_yaw = (yaw_magnetometer - previous_yaw+180)%360-180
     angular_velocity = delta_yaw / delta_t
 
-    state = state.State(
+    current_state = state.State(
         roll_acc = roll_acc,
         pitch_acc = pitch_acc,
         yaw_magnetometer = yaw_magnetometer,
@@ -86,7 +93,7 @@ while True:
     # 3. ESTRAZIONE DEGLI ANGOLI PER IL CONTROLLORE
     roll, pitch, yaw = ekf.get_euler_angles()
 
-    error_vy, error_vx, error_vz, error_angular_v = drone_control_scheme.outer_loop(delta_t)
+    error_vy, error_vx, error_vz, error_angular_v = drone_control_scheme.outer_loop(delta_t, current_state)
     w1, w2, w3, w4 = drone_control_scheme.inner_loop(error_vy, error_vx, error_vz, error_angular_v, roll, pitch, yaw, rot_z, rot_x, rot_y)
 
     # 4. CALCOLO ERRORE PER IL PID (Nodo Sottrattore)
