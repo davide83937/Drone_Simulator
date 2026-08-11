@@ -30,9 +30,9 @@ func _physics_process(delta: float) -> void:
 	#var g_local = body.transform.basis.inverse() * Vector3(gx, gy, gz)
 	
 	# 4. Pubblichiamo le velocità angolari locali in gradi al secondo (deg/s)
-	DDS.publish("gyro_x", DDS.DDS_TYPE_FLOAT, rad_to_deg(rot_x))
-	DDS.publish("gyro_y", DDS.DDS_TYPE_FLOAT, rad_to_deg(rot_y))
-	DDS.publish("gyro_z", DDS.DDS_TYPE_FLOAT, rad_to_deg(rot_z))
+	DDS.publish("gyro_x", DDS.DDS_TYPE_FLOAT, rad_to_deg(gx))
+	DDS.publish("gyro_y", DDS.DDS_TYPE_FLOAT, rad_to_deg(gy))
+	DDS.publish("gyro_z", DDS.DDS_TYPE_FLOAT, rad_to_deg(gz))
 
 	# 5. Salviamo le rotazioni per il prossimo frame
 	rot_x_pre = rot_x

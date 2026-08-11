@@ -2,7 +2,7 @@ extends Node3D
 
 @export var body: RigidBody3D
 
-var g = Vector3(0.0, 0.0, -9.81)
+var g = Vector3(0.0, -9.81, 0.0)
 var pos_x_pre = 0.0
 var pos_y_pre = 0.0
 var pos_z_pre = 0.0
@@ -34,7 +34,7 @@ func _physics_process(delta: float) -> void:
 	#print("fz ",f.z)
 	#print("posx ",pos_x)
 	#print("posy ",pos_y)
-	print("posz ",pos_z)
+	#print("posz ",pos_z)
 	DDS.publish("pos_x", DDS.DDS_TYPE_FLOAT, pos_x)
 	DDS.publish("pos_y", DDS.DDS_TYPE_FLOAT, pos_y)
 	DDS.publish("pos_z", DDS.DDS_TYPE_FLOAT, pos_z)
