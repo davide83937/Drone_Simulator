@@ -1,5 +1,9 @@
 import math
 
+import numpy as np
+
+from utils.geometry import normalize_angle
+
 
 # ------------------------------------------------------------
 
@@ -97,3 +101,35 @@ class StraightLine2DMotion:
         xt = self.xs + self.virtual_robot.p * math.cos(self.heading)
         yt = self.ys + self.virtual_robot.p * math.sin(self.heading)
         return (xt, yt)
+
+# ------------------------------------------------------------
+
+class StraightLineMotion:
+
+    def __init__(self, _vmax, _acc, _dec, angles_index = -1):
+        self.vmax = _vmax
+        self.accel = _acc
+        self.decel = _dec
+        self.angles_index = angles_index
+
+    def start_motion(self, start, end):
+        self.start = np.array(start)
+        self.end = np.array(end)
+        self.size = len(start)
+        self.diff = self.end - self.start
+        self.__normalize_angles(self.diff)
+        self.distance = np.linalg.norm(self.diff)
+        self.virtual_robot = VirtualRobot(self.distance,
+                                          self.vmax, self.accel, self.decel)
+
+    def evaluate(self, delta_t):
+        self.virtual_robot.evaluate(delta_t)
+        param = self.virtual_robot.p / self.distance
+        new_pos = self.start + param * self.diff
+        self.__normalize_angles(new_pos)
+        return new_pos.flatten().tolist()
+
+    def __normalize_angles(self, a):
+        if self.angles_index >= 0:
+            for i in range(self.angles_index, self.size):
+                a[i] = normalize_angle(a[i])
