@@ -36,7 +36,7 @@ func _physics_process(delta: float) -> void:
 
 	# Ottieni la velocità angolare reale (rad/s) nel sistema locale del drone
 	var gyro_local = body.global_transform.basis.inverse() * body.angular_velocity
-	
+	#print("gx: ",gyro_local.x, " gy: ", gyro_local.y, " gz: ", gyro_local.z)	
 	# Pubblica in gradi al secondo per l'EKF
 	DDS.publish("gyro_x", DDS.DDS_TYPE_FLOAT, rad_to_deg(gyro_local.x))
 	DDS.publish("gyro_y", DDS.DDS_TYPE_FLOAT, rad_to_deg(gyro_local.y))
