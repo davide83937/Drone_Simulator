@@ -10,12 +10,14 @@ extends Node3D # Oppure il tipo di nodo padre che stai usando
 var rot_torque: Vector3 = Vector3(0, 0, 25.0)
 var rot_torque1: Vector3 = Vector3(0, 0, -25.0)
 
+
 var i:int = 0
 func _ready() -> void:
 	DDS.subscribe("w1")
 	DDS.subscribe("w2")
 	DDS.subscribe("w3")
 	DDS.subscribe("w4")
+	DDS.subscribe("n")
 	
 
 func propN(prop, rot_torque, n):
@@ -56,9 +58,9 @@ func propOriginale(prop, rot_torque, n):
 		
 		# 2. Se real_rpm è positivo genera spinta in alto; se è negativo la spinta si azzera (max 0.0)
 
-		prop.apply_force(Vector3(0.0, vertical_force1, 0.0))
+		#prop.apply_force(Vector3(0.0, vertical_force1, 0.0))
 		var t = Vector3(0.0, 0.0, -rot_torque.z)
-		body.apply_torque(prop.global_transform.basis*t)
+		#body.apply_torque(prop.global_transform.basis*t)
 		if n == 1:
 			pass
 			#print(Vector3(0.0, vertical_force, 0.0))
@@ -67,23 +69,40 @@ func propOriginale(prop, rot_torque, n):
 func prop(prop, rot_torque, n):
 	if prop:
 		# 1. Applica la coppia (ora non sarà mai "negativa" e distruttiva grazie al mixer)
-		prop.apply_torque(prop.global_transform.basis * rot_torque)
+		var torque = prop.global_transform.basis * rot_torque
+		#print("torque: ",torque)
+		prop.apply_torque(torque)
+		#print("torque: ", torque)
 		
 		# 2. Leggi gli RPM fisici
 		var angular_velocity_vector: Vector3 = prop.angular_velocity
 		var omega: float = angular_velocity_vector.y
+		
+		# --- AGGIUNTA FONDAMENTALE: ATTRITO AERODINAMICO ---
+		# Simula la resistenza dell'aria. Regola "0.01" in base alla massa della tua elica.
+		# Questo frenerà l'elica quando rot_torque diventa 0.
+		var drag_coefficient = 0.05
+		#var drag_torque = -sign(omega) * drag_coefficient * abs(omega)
+		var v = Vector3(0.0, 0.0, -sign(omega) * prop.angular_velocity.length())
+		#print(v)
+		var contro_torque = (prop.global_transform.basis*v)*drag_coefficient
+		#print("contro_torque: ",contro_torque)
+		prop.apply_torque(contro_torque)
+		
 		var rpm: float = omega * (60.0 / TAU)
+		
 		
 		# 3. SPINTA FISICA PURA
 		# Essendo calcolata con pow(rpm, 2), è indipendente dal segno di rotazione
 		# (risolve automaticamente il problema delle eliche che girano in senso orario/antiorario)
-		print(n, ": ", rpm)
-		var vertical_force = 0.0001 * pow(rpm, 2)
-		prop.apply_force(Vector3(0.0, vertical_force, 0.0))
+		#print(n, ": ", rpm)
+		var vertical_force = 0.1 * abs(rpm)
+		#print(n, ": ", rpm, " - ",vertical_force)
+		#prop.apply_force(Vector3(0.0, vertical_force, 0.0))
 		
 		# 4. Contro-coppia al corpo per lo Yaw
-		var t = Vector3(0.0, 0.0, -rot_torque.z)
-		body.apply_torque(prop.global_transform.basis * t)
+		#var t = Vector3(0.0, 0.0, -rot_torque.z)
+		#body.apply_torque(prop.global_transform.basis * t)
 
 func _physics_process(delta: float) -> void:
 	DDS.publish("tick", DDS.DDS_TYPE_FLOAT, delta)
@@ -91,6 +110,11 @@ func _physics_process(delta: float) -> void:
 	var w2 = DDS.read("w2")
 	var w3 = DDS.read("w3")
 	var w4 = DDS.read("w4")
+	var n = DDS.read("n")
+	
+	if n != null:
+		n = n+1
+		print(n)
 
 	#print(body.position.z)
 	if w1 == null: w1 = 0.0
@@ -111,7 +135,7 @@ func _physics_process(delta: float) -> void:
 	DDS.publish("yaw", DDS.DDS_TYPE_FLOAT, yaw)
 	
 	var h = body.position.z
-	print("Altezza: ", h)
+	#print("Altezza: ", h)
 	
 	#print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
 	# Passiamo i comandi originali (w1, w2, w3, w4) per verificare l'intenzione del PID
