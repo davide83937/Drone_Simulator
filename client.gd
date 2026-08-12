@@ -64,22 +64,21 @@ func propOriginale(prop, rot_torque, n):
 			#print(Vector3(0.0, vertical_force, 0.0))
 		#print(vertical_force," -> ",n)
 
-func prop(prop, rot_torque, w_cmd, n):
+func prop(prop, rot_torque, n):
 	if prop:
-		# 1. Applica la coppia di rotazione all'elica
+		# 1. Applica la coppia (ora non sarà mai "negativa" e distruttiva grazie al mixer)
 		prop.apply_torque(prop.global_transform.basis * rot_torque)
 		
-		# 2. Leggi la velocità angolare e calcola gli RPM
+		# 2. Leggi gli RPM fisici
 		var angular_velocity_vector: Vector3 = prop.angular_velocity
 		var omega: float = angular_velocity_vector.y
 		var rpm: float = omega * (60.0 / TAU)
 		
-		# 3. SPINTA: Se il comando da Python è positivo, calcola la portanza.
-		# Se il comando è <= 0 (PID sta frenando), azzera la spinta.
-		var vertical_force = 0.0
-		if w_cmd > 0.0:
-			vertical_force = 0.0001 * pow(rpm, 2)
-			
+		# 3. SPINTA FISICA PURA
+		# Essendo calcolata con pow(rpm, 2), è indipendente dal segno di rotazione
+		# (risolve automaticamente il problema delle eliche che girano in senso orario/antiorario)
+		print(n, ": ", rpm)
+		var vertical_force = 0.0001 * pow(rpm, 2)
 		prop.apply_force(Vector3(0.0, vertical_force, 0.0))
 		
 		# 4. Contro-coppia al corpo per lo Yaw
@@ -107,10 +106,16 @@ func _physics_process(delta: float) -> void:
 	var roll = rad_to_deg(body.rotation.y)
 	var pitch = rad_to_deg(body.rotation.x)
 	var yaw = rad_to_deg(body.rotation.z)
+	DDS.publish("roll", DDS.DDS_TYPE_FLOAT, roll)
+	DDS.publish("pitch", DDS.DDS_TYPE_FLOAT, pitch)
+	DDS.publish("yaw", DDS.DDS_TYPE_FLOAT, yaw)
 	
-	print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
+	var h = body.position.z
+	print("Altezza: ", h)
+	
+	#print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
 	# Passiamo i comandi originali (w1, w2, w3, w4) per verificare l'intenzione del PID
-	prop(prop1, v1, float(w1), 1)
-	prop(prop2, v2, float(w2), 2)
-	prop(prop3, v3, float(w3), 3)
-	prop(prop4, v4, float(w4), 4)
+	prop(prop1, v1, 1)
+	prop(prop2, v2, 2)
+	prop(prop3, v3, 3)
+	prop(prop4, v4, 4)
