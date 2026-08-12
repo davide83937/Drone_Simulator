@@ -90,15 +90,14 @@ func prop(prop, rot_torque, n):
 		prop.apply_torque(contro_torque)
 		
 		var rpm: float = omega * (60.0 / TAU)
-		
-		
+	
 		# 3. SPINTA FISICA PURA
 		# Essendo calcolata con pow(rpm, 2), è indipendente dal segno di rotazione
 		# (risolve automaticamente il problema delle eliche che girano in senso orario/antiorario)
 		#print(n, ": ", rpm)
 		var vertical_force = 0.1 * abs(rpm)
 		#print(n, ": ", rpm, " - ",vertical_force)
-		#prop.apply_force(Vector3(0.0, vertical_force, 0.0))
+		prop.apply_force(Vector3(0.0, vertical_force, 0.0))
 		
 		# 4. Contro-coppia al corpo per lo Yaw
 		#var t = Vector3(0.0, 0.0, -rot_torque.z)
@@ -106,14 +105,16 @@ func prop(prop, rot_torque, n):
 
 func _physics_process(delta: float) -> void:
 	DDS.publish("tick", DDS.DDS_TYPE_FLOAT, delta)
+	# --- INIZIO MODIFICA: Svuota la coda leggendo sempre il valore più recente ---
 	var w1 = DDS.read("w1")
 	var w2 = DDS.read("w2")
-	var w3 = DDS.read("w3")
+	var w3 = DDS.read("w3")	
 	var w4 = DDS.read("w4")
+
 	var n = DDS.read("n")
-	
+
 	if n != null:
-		n = n+1
+		#n = n+1
 		print(n)
 
 	#print(body.position.z)
@@ -137,7 +138,7 @@ func _physics_process(delta: float) -> void:
 	var h = body.position.z
 	#print("Altezza: ", h)
 	
-	#print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
+	print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
 	# Passiamo i comandi originali (w1, w2, w3, w4) per verificare l'intenzione del PID
 	prop(prop1, v1, 1)
 	prop(prop2, v2, 2)
