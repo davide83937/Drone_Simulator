@@ -34,7 +34,7 @@ class DroneEKF:
         # Covarianza Errore (P), Rumore Processo (Q), Rumore Misura (R)
         self.P = np.eye(4) * 0.1
         self.Q = np.eye(4) * 0.001
-        self.R = np.eye(4) * 0.1
+        self.R = np.eye(4) * 50
         self.H = np.eye(4)
 
     def predict(self, gyro_deg, dt_val):

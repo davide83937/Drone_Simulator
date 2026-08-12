@@ -49,18 +49,18 @@ class droneControlScheme(controlScheme):
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
         self.virtualRobotAngular = VirtualRobot.StraightLineMotion(0.5, 0.2, 0.2, 0)
-        self.p_controller_angular = pid.PID(0.05, 0, 0, 30)
-        self.pi_controller_angular_speed = pid.PID(0.05, 0.01, 0, 30)
+        self.p_controller_angular = pid.PID(0.5, 0, 0, 30)
+        self.pi_controller_angular_speed = pid.PID(0.1, 0.01, 0, 30)
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ---
-        self.yaw_P = pid.PID(0.05, 0, 0, 0)
-        self.yaw_PI = pid.PID(0.01, 0.001, 0, 0)
+        self.yaw_P = pid.PID(0.5, 0, 0, 0)
+        self.yaw_PI = pid.PID(0.1, 0.01, 0, 0)
 
-        self.roll_P = pid.PID(0.05, 0, 0, 0)
-        self.roll_PI = pid.PID(0.01, 0.001, 0, 0)
+        self.roll_P = pid.PID(0.5, 0, 0, 0)
+        self.roll_PI = pid.PID(0.1, 0.01, 0, 0)
 
-        self.pitch_P = pid.PID(0.05, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.01, 0.001, 0, 0)
+        self.pitch_P = pid.PID(0.5, 0, 0, 0)
+        self.pitch_PI = pid.PID(0.1, 0.01, 0, 0)
 
     def start(self, **kwargs):
         # Altitudine lungo Y
@@ -124,11 +124,11 @@ class droneControlScheme(controlScheme):
         #print(f"target_roll: {target_roll}")
 
         # 4. CONTROLLO POSIZIONE Z (LONGITUDINALE) -> GENERA TARGET PITCH
-        self.p_controller_z.evaluate_error(target_z, state.pos_z)
+        self.p_controller_z.evaluate_error(target_z, state.pos_y)
         self.p_controller_z.evaluate_error_kp()
         error_p_z = self.p_controller_z.evaluate_total_error()
 
-        self.pi_controller_speed_z.evaluate_error(error_p_z, state.vel_z)
+        self.pi_controller_speed_z.evaluate_error(error_p_z, state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
         self.pi_controller_speed_z.saturation_p(-2.0, 2.0)
         self.pi_controller_speed_z.evaluate_error_ki(state.tick)
@@ -153,7 +153,7 @@ class droneControlScheme(controlScheme):
         target_yaw_rate = self.pi_controller_angular_speed.evaluate_total_error()
 
         #print(f"target_yaw: {target_yaw_rate}")
-
+        #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
         return thrust_cmd, target_roll, target_pitch, target_yaw_rate
 
     def inner_loop(self, state, target_thrust, target_roll, target_pitch, target_yaw_rate,
