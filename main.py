@@ -1,3 +1,5 @@
+import time
+
 from control_lib import SensorFusion
 from lib.dds import dds as DDS
 from lib.utils.time import *
@@ -12,7 +14,7 @@ ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
 drone_control_scheme.start(
-    y_start=0.0, y_end=10.0,
+    y_start=0.0, y_end=50.0,
     z_start=0.0, x_start=0.0,
     z_end=0.0, x_end=0.0,
     ang_start=0.0, ang_end=0.0
@@ -45,13 +47,16 @@ t.start()
 
 while True:
     dds.wait('tick')
+
     delta_t = t.elapsed()
     tick = dds.read('tick')
+    #print(f"tick: {tick}, delta_t: {delta_t}")
+    #time.sleep(tick)
     rot_x = dds.read('gyro_x')
     rot_y = dds.read('gyro_y')
     rot_z = dds.read('gyro_z')
-    a_x = dds.read('a_x')
-    a_y = dds.read('a_y')
+    a_x = dds.read('a_x') #y globale
+    a_y = dds.read('a_y') #x globale
     a_z = dds.read('a_z')
     b_x = dds.read('b_x')
     b_y = dds.read('b_y')
@@ -62,15 +67,15 @@ while True:
     vel_x = dds.read('vel_x')
     vel_y = dds.read('vel_y')
     vel_z = dds.read('vel_z')
-    roll = dds.read('roll')
-    pitch = dds.read('pitch')
-    yaw = dds.read('yaw')
+    #roll = dds.read('roll')
+    #pitch = dds.read('pitch')
+    #yaw = dds.read('yaw')
 
     if None in (rot_x, rot_y, rot_z, a_x, a_y, a_z, b_x, b_y, b_z, delta_t,
-                pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, roll, pitch, yaw):
+                pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, """roll, pitch, yaw"""):
         continue
 
-    roll_acc, pitch_acc = sm.get_roll_pitch_accelerometer(a_x, a_y, a_z)
+    roll_acc, pitch_acc = sm.get_roll_pitch_accelerometer(a_y, a_x, a_z)
     yaw_magnetometer = sm.get_yaw_from_magnetometer(b_x, b_y)
     delta_yaw = (yaw_magnetometer - previous_yaw + 180) % 360 - 180
     angular_velocity = delta_yaw / delta_t
@@ -88,16 +93,18 @@ while True:
         vel_y=vel_y,
         vel_z=vel_z
     )
-
+    #y = roll, z = pitch,  x=yaw
     gyro = [rot_y, rot_z, rot_x]
 
     ekf.predict(gyro, delta_t)
     ekf.update(roll_acc, pitch_acc, yaw_magnetometer)
 
     # 1. ESTRAZIONE DEGLI ANGOLI PER IL CONTROLLORE (dall'EKF)
-    #roll, pitch, yaw = ekf.get_euler_angles()
+    roll, pitch, yaw = ekf.get_euler_angles()
+    roll = roll + 90
+    pitch = pitch - 90
 
-    #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+    print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
 
     # 2. LOOP ESTERNO: Genera spinta e inclinazioni desiderate (Target Roll/Pitch)
     target_thrust, target_roll, target_pitch, target_yaw_rate = drone_control_scheme.outer_loop(delta_t, current_state)
@@ -109,11 +116,14 @@ while True:
         rot_z, rot_x, rot_y
     )
 
-    # 4. INVIO COMANDI AI MOTORI SU GODOT
-    dds.publish("w1", w1, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("w2", w2, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("w3", w3, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("w4", w4, DDS.DDS.DDS_TYPE_FLOAT)
-    dds.publish("n", n, DDS.DDS.DDS_TYPE_FLOAT)
+    if n%3 == 0:
+
+
+        # 4. INVIO COMANDI AI MOTORI SU GODOT
+        dds.publish("w1", w1, DDS.DDS.DDS_TYPE_FLOAT)
+        dds.publish("w2", w2, DDS.DDS.DDS_TYPE_FLOAT)
+        dds.publish("w3", w3, DDS.DDS.DDS_TYPE_FLOAT)
+        dds.publish("w4", w4, DDS.DDS.DDS_TYPE_FLOAT)
+        dds.publish("n", n, DDS.DDS.DDS_TYPE_FLOAT)
 
     previous_yaw = yaw_magnetometer
