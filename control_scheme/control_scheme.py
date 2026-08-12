@@ -107,7 +107,11 @@ class droneControlScheme(controlScheme):
         if thrust_cmd < HOVER_THRUST:
             thrust_cmd = HOVER_THRUST
 
+
+
+
         # 3. CONTROLLO POSIZIONE X (LATERALE) -> GENERA TARGET ROLL
+        #print(f"target_x: {target_x}")
         self.p_controller_x.evaluate_error(target_x, state.pos_x)
         self.p_controller_x.evaluate_error_kp()
         error_p_x = self.p_controller_x.evaluate_total_error()
@@ -123,7 +127,12 @@ class droneControlScheme(controlScheme):
         target_roll = max(min(raw_target_roll, MAX_ROLL_ANGLE), -MAX_ROLL_ANGLE)
         #print(f"target_roll: {target_roll}")
 
+
+
+
+
         # 4. CONTROLLO POSIZIONE Z (LONGITUDINALE) -> GENERA TARGET PITCH
+        #print(f"target_z: {target_z}")
         self.p_controller_z.evaluate_error(target_z, state.pos_y)
         self.p_controller_z.evaluate_error_kp()
         error_p_z = self.p_controller_z.evaluate_total_error()
@@ -139,6 +148,11 @@ class droneControlScheme(controlScheme):
         MAX_PITCH_ANGLE = 30.0
         target_pitch = max(min(raw_target_pitch, MAX_PITCH_ANGLE), -MAX_PITCH_ANGLE)
         #print(f"target_pitch: {target_pitch}")
+
+
+
+
+
 
         # 5. CONTROLLO ANGOLARE (YAW)
         self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
@@ -176,10 +190,13 @@ class droneControlScheme(controlScheme):
         self.yaw_PI.saturation_i(-20.0, 20.0)
         cmd_yaw = self.yaw_PI.evaluate_total_error()
 
+
+
+        print(f"target_roll: {target_roll}, target_pitch: {target_pitch}, target_yaw_rate: {target_yaw_rate}")
         # --- CONTROLLO ROLL (ROLLIO / ASSE X) ---
         # 1. Confronto tra Angolo Target (dall'Outer Loop) e Angolo Attuale (dall'EKF)
         self.roll_P.evaluate_error(target_roll, roll)
-        #print(f"errore roll: {target_roll-roll}")
+        print(f"errore roll: {target_roll-roll}")
         self.roll_P.evaluate_error_kp()
         self.roll_P.saturation_p(-30.0, 30.0)
         error_p_roll = self.roll_P.evaluate_total_error()
@@ -190,6 +207,10 @@ class droneControlScheme(controlScheme):
         self.roll_PI.evaluate_error_ki(state.tick)
         self.roll_PI.saturation_i(-30.0, 30.0)
         cmd_roll = self.roll_PI.evaluate_total_error()
+
+
+
+
 
         # --- CONTROLLO PITCH (BECCHEGGIO / ASSE Z) ---
         # 1. Confronto tra Angolo Target (dall'Outer Loop) e Angolo Attuale (dall'EKF)
@@ -205,7 +226,13 @@ class droneControlScheme(controlScheme):
         self.pitch_PI.evaluate_error_ki(state.tick)
         self.pitch_PI.saturation_i(-30.0, 30.0)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
+
+
         #print(f"roll: {cmd_roll}, pitch: {cmd_pitch}, yaw: {cmd_yaw}, target_thrust: {target_thrust}")
+
+
         self.nframe = self.nframe + 1
+
+
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
         return mixer(target_thrust, cmd_yaw, cmd_roll, cmd_pitch, self.nframe)
