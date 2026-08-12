@@ -103,7 +103,7 @@ while True:
     target_thrust, target_roll, target_pitch, target_yaw_rate = drone_control_scheme.outer_loop(delta_t, current_state)
 
     # 3. LOOP INTERNO: Genera i comandi per i 4 motori
-    w1, w2, w3, w4 = drone_control_scheme.inner_loop(
+    n, w1, w2, w3, w4 = drone_control_scheme.inner_loop(
         current_state, target_thrust, target_roll, target_pitch, target_yaw_rate,
         roll, pitch, yaw,
         rot_z, rot_x, rot_y
@@ -114,5 +114,6 @@ while True:
     dds.publish("w2", w2, DDS.DDS.DDS_TYPE_FLOAT)
     dds.publish("w3", w3, DDS.DDS.DDS_TYPE_FLOAT)
     dds.publish("w4", w4, DDS.DDS.DDS_TYPE_FLOAT)
+    dds.publish("n", n, DDS.DDS.DDS_TYPE_FLOAT)
 
     previous_yaw = yaw_magnetometer
