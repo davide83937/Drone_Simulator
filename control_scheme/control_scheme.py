@@ -41,7 +41,7 @@ class droneControlScheme(controlScheme):
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
         self.p_controller_x = pid.PID(0.15, 0, 0, 0)
-        self.pi_controller_speed_x = pid.PID(1.5, 1, 0, 0)
+        self.pi_controller_speed_x = pid.PID(1.6, 0.3, 0, 0)
 
         # Posizione e Velocità lungo Z (Genera il Pitch Target)
         self.p_controller_z = pid.PID(0.55, 0, 0, 0)
@@ -119,14 +119,14 @@ class droneControlScheme(controlScheme):
         self.p_controller_x.evaluate_error(target_x, state.pos_x)
         print(f"Errore px: {target_x - state.pos_x}")
         self.p_controller_x.evaluate_error_kp()
-        self.p_controller_x.saturation_p(-10.0, 10.0)
+        self.p_controller_x.saturation_p(-3.0, 3.0)
         error_p_x = self.p_controller_x.evaluate_total_error()
 
         self.pi_controller_speed_x.evaluate_error(error_p_x, state.vel_x)
         self.pi_controller_speed_x.evaluate_error_kp()
-        #self.pi_controller_speed_x.saturation_p(-3.0, 3.0)
+        self.pi_controller_speed_x.saturation_p(-2.0, 2.0)
         self.pi_controller_speed_x.evaluate_error_ki(state.tick)
-        self.pi_controller_speed_x.saturation_i(-8.0, 8.0)
+        self.pi_controller_speed_x.saturation_i(-4.0, 4.0)
         #self.pi_controller_speed_x.evaluate_error_kd(state.tick)
         raw_target_roll = self.pi_controller_speed_x.evaluate_total_error()
         print(f"raw_target_roll = {raw_target_roll}")
