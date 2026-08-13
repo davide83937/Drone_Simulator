@@ -16,8 +16,8 @@ drone_control_scheme = control_scheme.droneControlScheme()
 drone_control_scheme.start(
     y_start=0.0, y_end=50.0,
     z_start=0.0, x_start=0.0,
-    z_end= 50.0, x_end=50.0,
-    ang_start=0.0, ang_end=0.0
+    z_end= 0.0, x_end=0.0,
+    ang_start=0.0, ang_end=90.0
 )
 
 previous_yaw = 0
@@ -74,6 +74,7 @@ while True:
     if None in (rot_x, rot_y, rot_z, a_x, a_y, a_z, b_x, b_y, b_z, delta_t,
                 pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, roll, pitch, yaw):
         continue
+    #print(f"b_x: {b_x}, b_y: {b_y}, b_z: {b_z}")
     #print(f"pos_x: {pos_x}, pos_y: {pos_y}, pos_z: {pos_z}")
     roll_acc, pitch_acc = sm.get_roll_pitch_accelerometer(a_x, a_z, a_y)
     yaw_magnetometer = sm.get_yaw_from_magnetometer(b_x, b_y)

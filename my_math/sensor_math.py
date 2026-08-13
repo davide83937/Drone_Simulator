@@ -11,12 +11,18 @@ def get_yaw_from_magnetometer(bx, bz):
 
     yaw_rad = math.atan2(bz, bx)
     yaw_deg = math.degrees(yaw_rad)
-    yaw_deg = from180to360(yaw_deg)
-    angle = 270 - yaw_deg
-    if angle > 0:
-        angle -= 360
-    angle = 360 + angle
-    return angle
+    if yaw_deg > 0:
+        yaw_deg = - yaw_deg
+    else:
+        yaw_deg = -yaw_deg
+    return yaw_deg
+    #yaw_deg = from180to360(yaw_deg)
+    #angle = 360 - yaw_deg
+    #angle = 270 - yaw_deg
+    #if angle > 0:
+     #   angle -= 360
+    #angle = 360 + angle
+    return yaw_deg
 
 
 def from180to360(yaw_deg):
