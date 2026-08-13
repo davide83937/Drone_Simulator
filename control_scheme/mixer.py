@@ -16,7 +16,7 @@ def mixer(thrust_cmd, yaw_cmd, roll_cmd, pitch_cmd, nframe):
     #roll_cmd=0
     #pitch_cmd=0
 
-    print(f"roll_cmd: {roll_cmd}, pitch_cmd: {pitch_cmd}, yaw_cmd: {yaw_cmd}")
+    #print(f"roll_cmd: {roll_cmd}, pitch_cmd: {pitch_cmd}, yaw_cmd: {yaw_cmd}")
 
     w2 = thrust_cmd - yaw_cmd + roll_cmd + pitch_cmd
     w4 = thrust_cmd + yaw_cmd - roll_cmd + pitch_cmd

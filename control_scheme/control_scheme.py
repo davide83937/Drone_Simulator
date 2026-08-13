@@ -40,28 +40,28 @@ class droneControlScheme(controlScheme):
         self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
-        self.p_controller_x = pid.PID(0.05, 0, 0, 30)
-        self.pi_controller_speed_x = pid.PID(0.05, 0.01, 0, 30)
+        self.p_controller_x = pid.PID(0.5, 0, 0, 30)
+        self.pi_controller_speed_x = pid.PID(0.5, 0.1, 0.0, 30)
 
         # Posizione e Velocità lungo Z (Genera il Pitch Target)
-        self.p_controller_z = pid.PID(0.05, 0, 0, 30)
-        self.pi_controller_speed_z = pid.PID(0.05, 0.01, 0, 30)
+        self.p_controller_z = pid.PID(0.1, 0, 0, 30)
+        self.pi_controller_speed_z = pid.PID(0.1, 0.08, 0.01, 30)
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
         self.virtualRobotAngular = VirtualRobot.StraightLineMotion(0.5, 0.2, 0.2, 0)
-        self.p_controller_angular = pid.PID(0.5, 0, 0, 30)
-        self.pi_controller_angular_speed = pid.PID(0.1, 0.01, 0, 30)
+        self.p_controller_angular = pid.PID(0.2, 0, 0, 30)
+        self.pi_controller_angular_speed = pid.PID(0.2, 0.2, 0.02, 30)
 
-        # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ---
-        self.yaw_P = pid.PID(0.5, 0, 0, 0)
-        self.yaw_PI = pid.PID(0.1, 0.01, 0, 0)
+        # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
+        self.yaw_P = pid.PID(0.1, 0, 0, 0)
+        self.yaw_PI = pid.PID(0.1, 0.4, 0, 0)
 
-        self.roll_P = pid.PID(0.5, 0, 0, 0)
-        self.roll_PI = pid.PID(0.1, 0.01, 0, 0)
+        self.roll_P = pid.PID(0.2, 0, 0, 0)
+        self.roll_PI = pid.PID(0.1, 0.3, 0.01, 0)
 
-        self.pitch_P = pid.PID(0.5, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.1, 0.01, 0, 0)
-
+        self.pitch_P = pid.PID(0.1, 0, 0, 0)
+        self.pitch_PI = pid.PID(0.1, 0.4, 0.12, 0)
+#---------------------------------------------------------------------------------------------------------
     def start(self, **kwargs):
         # Altitudine lungo Y
         self.virtualRobotAltitude.start_motion((0, kwargs['y_start']), (0, kwargs['y_end']))
@@ -80,6 +80,8 @@ class droneControlScheme(controlScheme):
         target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
         angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
+
+
         # 2. CONTROLLO ALTITUDINE (ASSE Y VERTICALE)
         # Errore di posizione verticale (target_y vs pos_y)
         self.p_controller_altitude.evaluate_error(target_y, state.pos_z)
@@ -139,9 +141,10 @@ class droneControlScheme(controlScheme):
 
         self.pi_controller_speed_z.evaluate_error(error_p_z, state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
-        self.pi_controller_speed_z.saturation_p(-2.0, 2.0)
+        self.pi_controller_speed_z.saturation_p(-50.0, 50.0)
         self.pi_controller_speed_z.evaluate_error_ki(state.tick)
-        self.pi_controller_speed_z.saturation_i(-2.0, 2.0)
+        self.pi_controller_speed_z.saturation_i(-50.0, 50.0)
+        self.pi_controller_speed_z.evaluate_error_kd(state.tick)
         raw_target_pitch = self.pi_controller_speed_z.evaluate_total_error()
 
         # Saturazione dell'angolo di Pitch (es. max +-30 gradi)
@@ -155,19 +158,20 @@ class droneControlScheme(controlScheme):
 
 
         # 5. CONTROLLO ANGOLARE (YAW)
+        #print(f"angle_target: {angle_target}")
         self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
         self.p_controller_angular.evaluate_error_kp()
         error_angular = self.p_controller_angular.evaluate_total_error()
 
         self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
         self.pi_controller_angular_speed.evaluate_error_kp()
-        self.pi_controller_angular_speed.saturation_p(-3.0, 3.0)
+        self.pi_controller_angular_speed.saturation_p(-10.0, 10.0)
         self.pi_controller_angular_speed.evaluate_error_ki(state.tick)
-        self.pi_controller_angular_speed.saturation_i(-3.0, 3.0)
+        self.pi_controller_angular_speed.saturation_i(-10.0, 10.0)
         target_yaw_rate = self.pi_controller_angular_speed.evaluate_total_error()
 
         #print(f"target_yaw: {target_yaw_rate}")
-        #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
+        print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
         return thrust_cmd, target_roll, target_pitch, target_yaw_rate
 
     def inner_loop(self, state, target_thrust, target_roll, target_pitch, target_yaw_rate,
@@ -191,22 +195,28 @@ class droneControlScheme(controlScheme):
         cmd_yaw = self.yaw_PI.evaluate_total_error()
 
 
-
-        print(f"target_roll: {target_roll}, target_pitch: {target_pitch}, target_yaw_rate: {target_yaw_rate}")
+        #target_roll = 0
+        #target_pitch = 0
+        #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}, target_yaw_rate: {target_yaw_rate}")
         # --- CONTROLLO ROLL (ROLLIO / ASSE X) ---
         # 1. Confronto tra Angolo Target (dall'Outer Loop) e Angolo Attuale (dall'EKF)
         self.roll_P.evaluate_error(target_roll, roll)
-        print(f"errore roll: {target_roll-roll}")
+        #print(f"errore roll: {target_roll-roll}")
         self.roll_P.evaluate_error_kp()
-        self.roll_P.saturation_p(-30.0, 30.0)
+        self.roll_P.saturation_p(-1.0, 1.0)
         error_p_roll = self.roll_P.evaluate_total_error()
+        #print("error_p_roll", error_p_roll)
 
         # 2. Controllo della velocità angolare di Roll
         self.roll_PI.evaluate_error(error_p_roll, speed_roll)
         self.roll_PI.evaluate_error_kp()
+        self.roll_PI.saturation_p(-1.0, 1.0)
+        #error_p_roll = self.roll_PI.evaluate_total_error()
         self.roll_PI.evaluate_error_ki(state.tick)
-        self.roll_PI.saturation_i(-30.0, 30.0)
+        self.roll_PI.saturation_i(-0.5, 0.5)
+        self.roll_PI.evaluate_error_kd(state.tick)
         cmd_roll = self.roll_PI.evaluate_total_error()
+        #print("cmd_roll", cmd_roll)
 
 
 
@@ -215,16 +225,19 @@ class droneControlScheme(controlScheme):
         # --- CONTROLLO PITCH (BECCHEGGIO / ASSE Z) ---
         # 1. Confronto tra Angolo Target (dall'Outer Loop) e Angolo Attuale (dall'EKF)
         self.pitch_P.evaluate_error(target_pitch, pitch)
+        #print(f"errore pitch: {target_pitch - pitch}")
         self.pitch_P.evaluate_error_kp()
-        self.pitch_P.saturation_p(-30.0, 30.0)
+        self.pitch_P.saturation_p(-10.0, 10.0)
         #cmd_pitch = self.pitch_P.evaluate_total_error()
         error_p_pitch = self.pitch_P.evaluate_total_error()
 
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
+        self.pitch_PI.saturation_p(-10.0, 10.0)
         self.pitch_PI.evaluate_error_ki(state.tick)
-        self.pitch_PI.saturation_i(-30.0, 30.0)
+        self.pitch_PI.saturation_i(-5, 5)
+        self.pitch_PI.evaluate_error_kd(state.tick)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
 
 
@@ -235,4 +248,4 @@ class droneControlScheme(controlScheme):
 
 
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
-        return mixer(target_thrust, cmd_yaw, cmd_roll, cmd_pitch, self.nframe)
+        return mixer(target_thrust, -cmd_yaw, -cmd_roll, cmd_pitch, self.nframe)
