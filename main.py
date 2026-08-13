@@ -16,7 +16,7 @@ drone_control_scheme = control_scheme.droneControlScheme()
 drone_control_scheme.start(
     y_start=0.0, y_end=50.0,
     z_start=0.0, x_start=0.0,
-    z_end= 100.0, x_end=0.0,
+    z_end= 100.0, x_end=100.0,
     ang_start=0.0, ang_end=0.0
 )
 
