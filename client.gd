@@ -20,51 +20,6 @@ func _ready() -> void:
 	DDS.subscribe("n")
 	
 
-func propN(prop, rot_torque, n):
-	if prop:
-		# 1. Applica la coppia per far girare l'elica
-		prop.apply_torque(prop.global_transform.basis * rot_torque)
-		
-		# 2. Leggi la velocità e calcola RPM
-		var angular_velocity_vector: Vector3 = prop.angular_velocity
-		var omega: float = angular_velocity_vector.y
-		var rpm: float = omega * (60.0 / TAU)
-		
-		# 3. Calcola la spinta e orientala in base al CORPO (body), non all'elica!
-		var vertical_force = 0.0001 * rpm * abs(rpm)
-		var thrust_vector = prop.global_transform.basis * Vector3(0.0, 0.0, vertical_force)
-		prop.apply_force(thrust_vector)
-		
-		
-		# 4. Applica la contro-coppia (Yaw) al corpo del drone, sempre usando il riferimento del CORPO.
-		# (Uso -rot_torque.z come nel tuo codice)
-		var yaw_torque = body.global_transform.basis * Vector3(0.0, 0.0, -rot_torque.z)
-		body.apply_torque(yaw_torque)
-
-func propOriginale(prop, rot_torque, n):
-	if prop:
-		prop.apply_torque(prop.global_transform.basis*rot_torque)
-		
-		var angular_velocity_vector: Vector3 = prop.angular_velocity
-		var omega: float = angular_velocity_vector.y
-		var rpm: float = omega * (60.0 / TAU)
-		var vertical_force = 0.0001*pow(rpm, 2)
-		var vertical_force1 = 0.0001 * (rpm) * abs(rpm)
-		
-		#print("V: ", vertical_force)
-		#print("V1: ", vertical_force1)
-		# 1. Invertiamo il segno dell'RPM per allinearlo alla spinta verso l'alto
-	
-		
-		# 2. Se real_rpm è positivo genera spinta in alto; se è negativo la spinta si azzera (max 0.0)
-
-		#prop.apply_force(Vector3(0.0, vertical_force1, 0.0))
-		var t = Vector3(0.0, 0.0, -rot_torque.z)
-		#body.apply_torque(prop.global_transform.basis*t)
-		if n == 1:
-			pass
-			#print(Vector3(0.0, vertical_force, 0.0))
-		#print(vertical_force," -> ",n)
 
 func prop(prop, rot_torque, n):
 	if prop:
@@ -74,9 +29,14 @@ func prop(prop, rot_torque, n):
 		prop.apply_torque(torque)
 		#print("torque: ", torque)
 		
+		
 		# 2. Leggi gli RPM fisici
 		var angular_velocity_vector: Vector3 = prop.angular_velocity
 		var omega: float = angular_velocity_vector.y
+		
+		# 2. Leggi gli RPM fisici (DEVE ESSERE L'ASSE Z LOCALE, NON LA Y GLOBALE!)
+		#var local_angular_vel = prop.global_transform.basis.inverse() * prop.angular_velocity
+		#var omega: float = local_angular_vel.z
 		
 		# --- AGGIUNTA FONDAMENTALE: ATTRITO AERODINAMICO ---
 		# Simula la resistenza dell'aria. Regola "0.01" in base alla massa della tua elica.
@@ -97,8 +57,28 @@ func prop(prop, rot_torque, n):
 		#print(n, ": ", rpm)
 		var vertical_force = 0.1 * abs(rpm)
 		#print(n, ": ", rpm, " - ",vertical_force)
-		prop.apply_force(Vector3(0.0, vertical_force, 0.0))
+		var local_thrust = prop.global_transform.basis * Vector3(0.0, 0.0, vertical_force)
+
+		prop.apply_force(local_thrust)
 		
+		# Definisci un coefficiente per la resistenza dell'aria (da tarare)
+		var drag_factor = 0.005 
+
+		# Calcola il vettore di torsione basato sulla velocità dell'elica lungo il suo asse Y locale
+		#var local_torque = Vector3(0.0, 0.0, drag_factor * abs(rpm))
+		var reaction_torque = body.global_transform.basis.y * (drag_factor * abs(rpm))# * local_torque
+		print("r_torque: ", -local_thrust)
+		# Applica la torsione al corpo centrale del drone.
+		# ATTENZIONE: Le due diagonali devono spingere in versi opposti!
+		# Assumendo che w1/w2 siano una diagonale e w3/w4 l'altra:
+		reaction_torque = body.global_transform.basis*Vector3(0.0, 0.0, 0.1)
+
+		#if n == 1 or n == 2:
+		body.apply_torque(-torque) # Senso antiorario
+			#pass
+		#elif n == 3 or n == 4:
+			#body.apply_torque(-torque)  # Senso orario
+			#pass		
 		# 4. Contro-coppia al corpo per lo Yaw
 		#var t = Vector3(0.0, 0.0, -rot_torque.z)
 		#body.apply_torque(prop.global_transform.basis * t)
@@ -136,8 +116,10 @@ func _physics_process(delta: float) -> void:
 	DDS.publish("yaw", DDS.DDS_TYPE_FLOAT, yaw)
 	
 	var h = body.position.z
-	#print("Altezza: ", h)
-	
+	print("Altezza: ", h)
+	#print("X: ", body.position.x)
+	#print("Y: ", body.position.y)
+	#print("Z: ", body.position.z)
 	print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
 	# Passiamo i comandi originali (w1, w2, w3, w4) per verificare l'intenzione del PID
 	prop(prop1, v1, 1)

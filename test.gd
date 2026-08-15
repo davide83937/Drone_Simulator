@@ -8,7 +8,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	#body.rotation.z += deg_to_rad(15)
+	#body.rotation.z += deg_to_rad(0.1)
 	#body.position.x += n
 	#n +=0.01
 	#body.apply_central_impulse(Vector3(0, 10,0))
