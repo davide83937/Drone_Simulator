@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 from control_lib import VirtualRobot
 from control_lib import pid
@@ -48,19 +49,22 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_z = pid.PID(3.5, 2.5, 0.0, 0)
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
-        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(0.5, 0.2, 0.2, 0)
-        self.p_controller_angular = pid.PID(0.02, 0, 0, 0)
-        self.pi_controller_angular_speed = pid.PID(0.02, 0.02, 0.0, 0)
+        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(0.06, 0.005, 0.005, 0)
+        self.p_controller_angular = pid.PID(0.1, 0, 0, 0)
+        #self.pi_controller_angular_speed = pid.PID(0.1, 0.1, 0.0, 0)
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
-        self.yaw_P = pid.PID(0.3, 0, 0, 0)
+        #self.yaw_P = pid.PID(0.3, 0, 0, 0)
         self.yaw_PI = pid.PID(0.3, 0.2, 0, 0)
 
         self.roll_P = pid.PID(0.3, 0, 0, 0)
         self.roll_PI = pid.PID(0.1, 0.3, 0.01, 0)
 
-        self.pitch_P = pid.PID(0.3, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.1, 0.25, 0.25, 0)
+        self.pitch_P = pid.PID(0.15, 0, 0, 0)
+        self.pitch_PI = pid.PID(0.15, 0.25, 0.2, 0)
+
+        #self.pitch_P = pid.PID(0.3, 0, 0, 0)
+        #self.pitch_PI = pid.PID(0.1, 0.3, 0.01, 0)
 #---------------------------------------------------------------------------------------------------------
     def start(self, **kwargs):
         # Altitudine lungo Y
@@ -79,6 +83,8 @@ class droneControlScheme(controlScheme):
         _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
         target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
         angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
+        angle_target = math.degrees(angle_target)
+        print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
 
 
@@ -174,20 +180,20 @@ class droneControlScheme(controlScheme):
         #print(f"angle_magne: {state.yaw_magnetometer}")
         self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
         self.p_controller_angular.evaluate_error_kp()
-        self.p_controller_angular.saturation_p(-3.0, 3.0)
+        self.p_controller_angular.saturation_p(-10.0, 10.0)
         error_angular = self.p_controller_angular.evaluate_total_error()
-        print(f"yaw_p_error: {error_angular}")
+        #print(f"yaw_p_error: {error_angular}")
 
-        self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
-        self.pi_controller_angular_speed.evaluate_error_kp()
-        self.pi_controller_angular_speed.saturation_p(-3.0, 3.0)
-        self.pi_controller_angular_speed.evaluate_error_ki(state.tick)
-        self.pi_controller_angular_speed.saturation_i(-3.0, 3.0)
-        target_yaw_rate = self.pi_controller_angular_speed.evaluate_total_error()
+        #self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
+        #self.pi_controller_angular_speed.evaluate_error_kp()
+        #self.pi_controller_angular_speed.saturation_p(-10.0, 10.0)
+        #self.pi_controller_angular_speed.evaluate_error_ki(state.tick)
+        #self.pi_controller_angular_speed.saturation_i(-10.0, 10.0)
+        #target_yaw_rate = self.pi_controller_angular_speed.evaluate_total_error()
 
         #print(f"target_yaw: {target_yaw_rate}")
         #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
-        return thrust_cmd, target_roll, target_pitch, target_yaw_rate
+        return thrust_cmd, target_roll, target_pitch, error_angular
 
     def inner_loop(self, state, target_thrust, target_roll, target_pitch, target_yaw_rate,
                    roll, pitch, yaw, speed_roll, speed_pitch, speed_yaw):
@@ -196,15 +202,15 @@ class droneControlScheme(controlScheme):
         """
 
         # --- CONTROLLO YAW (IMBARDATA) ---
-        self.yaw_P.evaluate_error(target_yaw_rate, yaw)
-        self.yaw_P.evaluate_error_kp()
-        self.yaw_P.saturation_p(-1.0, 1.0)
-        error_p_yaw = self.yaw_P.evaluate_total_error()
+        #self.yaw_P.evaluate_error(target_yaw_rate, yaw)
+        #self.yaw_P.evaluate_error_kp()
+        #self.yaw_P.saturation_p(-1.0, 1.0)
+        #error_p_yaw = self.yaw_P.evaluate_total_error()
 
-        self.yaw_PI.evaluate_error(error_p_yaw, speed_yaw)
+        self.yaw_PI.evaluate_error(target_yaw_rate, speed_yaw)
         self.yaw_PI.evaluate_error_kp()
         self.yaw_PI.evaluate_error_ki(state.tick)
-        self.yaw_PI.saturation_i(-2.0, 2.0)
+        self.yaw_PI.saturation_i(-20.0, 20.0)
         cmd_yaw = self.yaw_PI.evaluate_total_error()
 
 
@@ -243,22 +249,23 @@ class droneControlScheme(controlScheme):
         self.pitch_P.saturation_p(-10.0, 10.0)
         #cmd_pitch = self.pitch_P.evaluate_total_error()
         error_p_pitch = self.pitch_P.evaluate_total_error()
-
+        print("error_p_pitch", error_p_pitch)
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
-        self.pitch_PI.saturation_p(-5.0, 5.0)
+        self.pitch_PI.saturation_p(-1.0, 1.0)
         self.pitch_PI.evaluate_error_ki(state.tick)
-        self.pitch_PI.saturation_i(-3, 3)
+        self.pitch_PI.saturation_i(-5.0, 5.0)
         self.pitch_PI.evaluate_error_kd(state.tick)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
+        print("error_pi_pitch", cmd_pitch)
 
 
-        #print(f"roll: {cmd_roll}, pitch: {cmd_pitch}, yaw: {cmd_yaw}, target_thrust: {target_thrust}")
+        print(f"roll: {cmd_roll}, pitch: {cmd_pitch}, yaw: {cmd_yaw}, target_thrust: {target_thrust}")
 
 
         self.nframe = self.nframe + 1
 
 
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
-        return mixer(target_thrust, target_yaw_rate, -cmd_roll, cmd_pitch, self.nframe)
+        return mixer(target_thrust, cmd_yaw, -cmd_roll, cmd_pitch, self.nframe)

@@ -31,5 +31,5 @@ def mixer(thrust_cmd, yaw_cmd, roll_cmd, pitch_cmd, nframe):
 
 
     #print(thrust_cmd)
-    print(f"yaw_cmd: {yaw_cmd}")
+    #print(f"yaw_cmd: {yaw_cmd}")
     return nframe, w1, w2, w3, w4

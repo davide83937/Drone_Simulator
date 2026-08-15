@@ -1,3 +1,4 @@
+import math
 import time
 
 from control_lib import SensorFusion
@@ -13,11 +14,13 @@ dds.start('127.0.0.1', 4445)
 ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
+angle_target = math.radians(0)
+
 drone_control_scheme.start(
     y_start=0.0, y_end=50.0,
     z_start=0.0, x_start=0.0,
     z_end= 0.0, x_end=0.0,
-    ang_start=0.0, ang_end=90.0
+    ang_start=0.0, ang_end=angle_target
 )
 
 previous_yaw = 0
