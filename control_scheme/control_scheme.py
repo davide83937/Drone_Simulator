@@ -2,7 +2,7 @@ import math
 from abc import ABC, abstractmethod
 from control_lib import VirtualRobot
 from control_lib import pid
-
+import matplotlib.pyplot as plt
 from my_math import myMath
 from control_scheme.state import State
 from control_scheme.mixer import mixer
@@ -29,6 +29,12 @@ class controlScheme(ABC):
 
 class droneControlScheme(controlScheme):
     def __init__(self):
+        self.log_ticks = []
+        self.log_target_pitch = []
+        self.log_actual_pitch = []
+        self.log_cmd_pitch = []
+        self.time = 0.0
+
 
         self.nframe = 0
 
@@ -58,10 +64,10 @@ class droneControlScheme(controlScheme):
         self.yaw_PI = pid.PID(0.3, 0.2, 0, 0)
 
         self.roll_P = pid.PID(0.3, 0, 0, 0)
-        self.roll_PI = pid.PID(0.1, 0.3, 0.01, 0)
+        self.roll_PI = pid.PID(0.1, 0.3, 0.04, 0)
 
-        self.pitch_P = pid.PID(0.15, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.15, 0.25, 0.2, 0)
+        self.pitch_P = pid.PID(0.2, 0, 0, 0)
+        self.pitch_PI = pid.PID(0.8, 1.3, 0.002, 0)
 
         #self.pitch_P = pid.PID(0.3, 0, 0, 0)
         #self.pitch_PI = pid.PID(0.1, 0.3, 0.01, 0)
@@ -74,19 +80,45 @@ class droneControlScheme(controlScheme):
         # Angolo di rotta (Yaw)
         self.virtualRobotAngular.start_motion([kwargs['ang_start']], [kwargs['ang_end']])
 
+    def plot_pitch_performance(self):
+        """Genera e mostra il grafico delle performance del Pitch"""
+        plt.figure(figsize=(12, 6))
+
+        # Plot delle tre variabili
+        plt.plot(self.log_ticks, self.log_target_pitch, label='Target Pitch (Richiesto)', linestyle='--', color='blue',
+                 linewidth=2)
+        plt.plot(self.log_ticks, self.log_actual_pitch, label='Pitch Attuale (Reale)', color='green', linewidth=2)
+        plt.plot(self.log_ticks, self.log_cmd_pitch, label='Output PID (cmd_pitch)', color='red', alpha=0.5)
+
+        # Titoli e griglia
+        plt.title('Analisi PID Pitch: Target vs Reale vs Output Motore')
+        plt.xlabel('Tick (Tempo)')
+        plt.ylabel('Gradi / Comando')
+        plt.legend(loc='upper right')
+        plt.grid(True)
+
+        # Mostra il grafico a schermo
+        plt.show()
+
+
     def outer_loop(self, delta_t, state: State):
 
         """
         LOOP ESTERNO (Posizione -> Velocità -> Target di Inclinazione e Spinta)
         """
         # 1. VALUTAZIONE DEI VIRTUAL ROBOT (SETPOINTS TRAIETTORIA)
-        _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
-        target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
-        angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
-        angle_target = math.degrees(angle_target)
+        target_y = 100
+        target_z, target_x = 0,0
+        angle_target = 0
+
         print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
-
+        if state.pos_z > 0.3:
+            _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
+            target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
+            angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
+            angle_target = math.degrees(angle_target)
+            print("angle_target:", angle_target)
 
         # 2. CONTROLLO ALTITUDINE (ASSE Y VERTICALE)
         # Errore di posizione verticale (target_y vs pos_y)
@@ -244,28 +276,47 @@ class droneControlScheme(controlScheme):
         # --- CONTROLLO PITCH (BECCHEGGIO / ASSE Z) ---
         # 1. Confronto tra Angolo Target (dall'Outer Loop) e Angolo Attuale (dall'EKF)
         self.pitch_P.evaluate_error(target_pitch, pitch)
+        print(f"target pitch: {target_pitch}")
         #print(f"errore pitch: {target_pitch - pitch}")
         self.pitch_P.evaluate_error_kp()
-        self.pitch_P.saturation_p(-10.0, 10.0)
+        self.pitch_P.saturation_p(-20.0, 20.0)
         #cmd_pitch = self.pitch_P.evaluate_total_error()
         error_p_pitch = self.pitch_P.evaluate_total_error()
         print("error_p_pitch", error_p_pitch)
+
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
-        self.pitch_PI.saturation_p(-1.0, 1.0)
+        self.pitch_PI.saturation_p(-20.0, 20.0)
+        pp = self.pitch_PI.pid_p_result
+        print("pp", pp)
         self.pitch_PI.evaluate_error_ki(state.tick)
-        self.pitch_PI.saturation_i(-5.0, 5.0)
+        self.pitch_PI.saturation_i(-20.0, 20.0)
         self.pitch_PI.evaluate_error_kd(state.tick)
+        self.pitch_PI.saturation_d(-10.0, 10.0)
+        self.pitch_PI.evaluate_error_kd(state.tick)
+        pd = self.pitch_PI.pid_d_result
+        print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
         print("error_pi_pitch", cmd_pitch)
+
+
 
 
         print(f"roll: {cmd_roll}, pitch: {cmd_pitch}, yaw: {cmd_yaw}, target_thrust: {target_thrust}")
 
 
         self.nframe = self.nframe + 1
+        print(f"t: {self.time}")
+        self.time += state.tick
+        if self.time < 3:
+            self.log_ticks.append(self.time)
+            self.log_target_pitch.append(target_pitch)
+            self.log_actual_pitch.append(pitch)
+            self.log_cmd_pitch.append(cmd_pitch)
 
+        if self.time>3:
+            self.plot_pitch_performance()
 
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
-        return mixer(target_thrust, cmd_yaw, -cmd_roll, cmd_pitch, self.nframe)
+        return mixer(target_thrust, cmd_yaw, -cmd_roll, -cmd_pitch, self.nframe)
