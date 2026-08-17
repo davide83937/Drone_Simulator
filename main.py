@@ -18,7 +18,7 @@ angle_target = math.radians(0)
 
 drone_control_scheme.start(
     y_start=0.0, y_end=50.0,
-    z_start=0.0, x_start=0.0,
+    z_start=0.5, x_start=0.1,
     z_end= 0.0, x_end=0.0,
     ang_start=0.0, ang_end=angle_target
 )
