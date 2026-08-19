@@ -12,11 +12,13 @@ def mixer(thrust_cmd, yaw_cmd, roll_cmd, pitch_cmd, nframe):
     if secondi > 5:
         #thrust_cmd = 0
         pass
-    yaw_cmd=0
+    #yaw_cmd=0
     #roll_cmd=0
     #pitch_cmd=0
 
     #print(f"roll_cmd: {roll_cmd}, pitch_cmd: {pitch_cmd}, yaw_cmd: {yaw_cmd}")
+
+
 
     w2 = thrust_cmd + yaw_cmd + roll_cmd + pitch_cmd
     w4 = thrust_cmd - yaw_cmd - roll_cmd + pitch_cmd
@@ -27,7 +29,11 @@ def mixer(thrust_cmd, yaw_cmd, roll_cmd, pitch_cmd, nframe):
     w2 = max(0.0, w2)
     w3 = max(0.0, w3)
     w4 = max(0.0, w4)
-    #print(f"w2: {w2}, w4: {w4}, w1: {w1}, w3: {w3}")
+    print(f"w2: {w2}, w4: {w4}, w1: {w1}, w3: {w3}")
+    #w1 = 25
+    #w2 = 25
+    #w3 = 25
+    #w4 = 25
 
 
     #print(thrust_cmd)

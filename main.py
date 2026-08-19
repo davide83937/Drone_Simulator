@@ -16,10 +16,14 @@ drone_control_scheme = control_scheme.droneControlScheme()
 
 angle_target = math.radians(0)
 
+z_end = 0
+z_end = -z_end
+
+
 drone_control_scheme.start(
     y_start=0.0, y_end=50.0,
-    z_start=0.5, x_start=0.1,
-    z_end= 0.0, x_end=0.0,
+    z_start=0.0, x_start=0.0,
+    z_end=z_end, x_end=0.0,
     ang_start=0.0, ang_end=angle_target
 )
 
@@ -46,6 +50,7 @@ dds.subscribe(['pitch'])
 dds.subscribe(['yaw'])
 t = Time()
 t.start()
+
 
 
 while True:
@@ -108,7 +113,7 @@ while True:
     #roll = roll+130
     #pitch = pitch-80
 
-    #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+    print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
 
     # 2. LOOP ESTERNO: Genera spinta e inclinazioni desiderate (Target Roll/Pitch)
     target_thrust, target_roll, target_pitch, target_yaw_rate = drone_control_scheme.outer_loop(delta_t, current_state)
