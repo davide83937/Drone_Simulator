@@ -177,7 +177,7 @@ class droneControlScheme(controlScheme):
         #print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
         #print(f"target_z, {state.pos_z}")
-        if state.pos_z > 0.0:
+        if state.pos_z > -10.0:
             _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
             target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
             angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
