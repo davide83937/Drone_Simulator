@@ -13,8 +13,8 @@ def mixer(thrust_cmd, yaw_cmd, roll_cmd, pitch_cmd, nframe):
         #thrust_cmd = 0
         pass
     yaw_cmd=0
-    roll_cmd=0
-    pitch_cmd=0
+    #roll_cmd=0
+    #pitch_cmd=0
 
     #print(f"roll_cmd: {roll_cmd}, pitch_cmd: {pitch_cmd}, yaw_cmd: {yaw_cmd}")
 

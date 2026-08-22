@@ -2,10 +2,9 @@ import math
 from abc import ABC, abstractmethod
 from control_lib import VirtualRobot
 from control_lib import pid
-import matplotlib.pyplot as plt
-from my_math import myMath
 from control_scheme.state import State
 from control_scheme.mixer import mixer
+from plotting.plotManager import plotManager
 
 
 class controlScheme(ABC):
@@ -29,30 +28,16 @@ class controlScheme(ABC):
 
 class droneControlScheme(controlScheme):
     def __init__(self):
-        self.log_ticks = []
-        self.log_target_pitch = []
-        self.log_actual_pitch = []
-        self.log_cmd_pitch = []
-
-        self.log_ticks1 = []
-        self.log_target_roll = []
-        self.log_actual_roll = []
-        self.log_cmd_roll = []
-
-        self.log_ticks_x = []
-        self.log_target_x = []
-        self.log_actual_x = []
-        self.log_cmd_x = []
-
         self.time = 0.0
         self.nframe = 0
 
-        self.flag=True
+        self.plottino = plotManager(25)
+
 
         # --- CONTROLLORI ALTITUDINE (Asse Y in Godot) ---
         self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(10, 2, 2)
-        self.p_controller_altitude = pid.PID(0.45, 0, 0.1, 50)
-        self.pi_controller_speed_altitude = pid.PID(1.9, 0.9, 0.3, 30)
+        self.p_controller_altitude = pid.PID(0.5, 0, 0.1, 50)
+        self.pi_controller_speed_altitude = pid.PID(0.5, 0.35, 0.2, 30)
 
         # --- CONTROLLORI PIANO ORIZZONTALE (Assi X e Z) ---
         self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
@@ -63,7 +48,7 @@ class droneControlScheme(controlScheme):
 
         # Posizione e Velocità lungo Z (Genera il Pitch Target)
         self.p_controller_z = pid.PID(0.24, 0, 0, 0)
-        self.pi_controller_speed_z = pid.PID(2.5, 0.01, 0.15, 0)
+        self.pi_controller_speed_z = pid.PID(0.25, 0.01, 0.15, 0)
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
         self.virtualRobotAngular = VirtualRobot.StraightLineMotion(0.06, 0.005, 0.005, 0)
@@ -77,8 +62,8 @@ class droneControlScheme(controlScheme):
         self.roll_P = pid.PID(0.5, 0, 0, 0)
         self.roll_PI = pid.PID(0.1, 0.3, 0.02, 0)
 
-        self.pitch_P = pid.PID(0.25, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.1, 0.16, 0.2, 0)
+        self.pitch_P = pid.PID(0.5, 0, 0, 0)
+        self.pitch_PI = pid.PID(0.1, 0.3, 0.5, 0)
 
         #self.pitch_P = pid.PID(0.3, 0, 0, 0)
         #self.pitch_PI = pid.PID(0.1, 0.3, 0.01, 0)
@@ -91,77 +76,6 @@ class droneControlScheme(controlScheme):
         # Angolo di rotta (Yaw)
         self.virtualRobotAngular.start_motion([kwargs['ang_start']], [kwargs['ang_end']])
 
-    def plot_pitch_performance(self, mode="pitch"):
-        """Genera e mostra il grafico delle performance del Pitch"""
-        plt.figure(figsize=(12, 6))
-
-        # Plot delle tre variabili
-        if mode == "pitch":
-            plt.plot(self.log_ticks, self.log_target_pitch, label='Target Pitch (Richiesto)', linestyle='--', color='blue',
-                     linewidth=2)
-            plt.plot(self.log_ticks, self.log_actual_pitch, label='Pitch Attuale (Reale)', color='green', linewidth=2)
-            plt.plot(self.log_ticks, self.log_cmd_pitch, label='Output PID (cmd_pitch)', color='red', alpha=0.5)
-
-
-            # Titoli e griglia
-            plt.title('Analisi PID Pitch: Target vs Reale vs Output Motore')
-            plt.xlabel('Tick (Tempo)')
-            plt.ylabel('Gradi / Comando')
-            plt.legend(loc='upper right')
-            plt.grid(True)
-            plt.show()
-        elif mode == "roll":
-            plt.plot(self.log_ticks, self.log_target_roll, label='Target Roll (Richiesto)', linestyle='--', color='black',
-                     linewidth=2)
-            plt.plot(self.log_ticks, self.log_actual_roll, label='Roll Attuale (Reale)', color='yellow', linewidth=2)
-            plt.plot(self.log_ticks, self.log_cmd_roll, label='Output PID (cmd_roll)', color='purple', alpha=0.5)
-
-            # Titoli e griglia
-            plt.title('Analisi PID Roll: Target vs Reale vs Output Motore')
-            plt.xlabel('Tick (Tempo)')
-            plt.ylabel('Gradi / Comando')
-            plt.legend(loc='upper right')
-            plt.grid(True)
-
-            # Mostra il grafico a schermo
-            plt.show()
-
-
-
-        elif mode == "x":
-            plt.plot(self.log_ticks_x, self.log_target_x, label='Target X (Richiesto)', linestyle='--', color='black',
-                     linewidth=2)
-            plt.plot(self.log_ticks_x, self.log_actual_x, label='X Attuale (Reale)', color='yellow', linewidth=2)
-            #plt.plot(self.log_ticks, self.log_cmd_roll, label='Output PID (cmd_roll)', color='purple', alpha=0.5)
-
-            # Titoli e griglia
-            plt.title('Analisi PID x: Target vs Reale')
-            plt.xlabel('Tick (Tempo)')
-            plt.ylabel('Gradi / Comando')
-            plt.legend(loc='upper right')
-            plt.grid(True)
-
-            # Mostra il grafico a schermo
-            plt.show()
-
-
-        elif mode == "y":
-            plt.plot(self.log_ticks_x, self.log_target_x, label='Target Y (Richiesto)', linestyle='--', color='black',
-                     linewidth=2)
-            plt.plot(self.log_ticks_x, self.log_actual_x, label='Y Attuale (Reale)', color='yellow', linewidth=2)
-            #plt.plot(self.log_ticks, self.log_cmd_roll, label='Output PID (cmd_roll)', color='purple', alpha=0.5)
-
-            # Titoli e griglia
-            plt.title('Analisi PID y: Target vs Reale ')
-            plt.xlabel('Tick (Tempo)')
-            plt.ylabel('Gradi / Comando')
-            plt.legend(loc='upper right')
-            plt.grid(True)
-
-            # Mostra il grafico a schermo
-            plt.show()
-
-
 
 
     def outer_loop(self, delta_t, state: State):
@@ -171,9 +85,9 @@ class droneControlScheme(controlScheme):
         """
         # 1. VALUTAZIONE DEI VIRTUAL ROBOT (SETPOINTS TRAIETTORIA)
         target_y = 20
-        target_z, target_x = 0,0
+        target_z, target_x = 0, 0
         angle_target = 0
-
+        self.time += delta_t
         #print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
         #print(f"target_z, {state.pos_z}")
@@ -182,14 +96,15 @@ class droneControlScheme(controlScheme):
             target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
             angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
             angle_target = math.degrees(angle_target)
-            print("angle_target:", angle_target)
+            #print("angle_target:", angle_target)
         #print("target_y:", target_y)
 
         # 2. CONTROLLO ALTITUDINE (ASSE Y VERTICALE)
         # Errore di posizione verticale (target_y vs pos_y)
+        print(f"Z : {state.pos_z}")
         self.p_controller_altitude.evaluate_error(target_y, state.pos_z)
         self.p_controller_altitude.evaluate_error_kp()
-        self.p_controller_altitude.saturation_p(-5.0, 5.0)
+        self.p_controller_altitude.saturation_p(-10.0, 10.0)
         self.p_controller_altitude.evaluate_error_kd(state.tick)
 
         error_p_y = self.p_controller_altitude.evaluate_total_error()
@@ -198,7 +113,7 @@ class droneControlScheme(controlScheme):
         # Errore di velocità verticale (error_p_y vs vel_y)
         self.pi_controller_speed_altitude.evaluate_error(error_p_y, state.vel_z)
         self.pi_controller_speed_altitude.evaluate_error_kp()
-        self.pi_controller_speed_altitude.saturation_p(-10.0, 25.0)
+        self.pi_controller_speed_altitude.saturation_p(-5.0, 5.0)
         self.pi_controller_speed_altitude.evaluate_error_ki(state.tick)
         self.pi_controller_speed_altitude.saturation_i(-15.0, 15.0)
         #print(f"i error: {self.pi_controller_speed_altitude.pid_i_result}")
@@ -209,7 +124,7 @@ class droneControlScheme(controlScheme):
 
 
         # Spinta di sostentamento (Feed-Forward per la gravità) + correzione PID
-        HOVER_THRUST = 9.81*1.6  # Valore di spinta necessario per sostenere il peso del drone
+        HOVER_THRUST = 9.81*9  # Valore di spinta necessario per sostenere il peso del drone
         thrust_cmd = HOVER_THRUST + error_v_y
         if thrust_cmd < HOVER_THRUST:
             thrust_cmd = HOVER_THRUST
@@ -281,19 +196,6 @@ class droneControlScheme(controlScheme):
         #print(f"yaw_p_error: {error_angular}")
 
 
-        if self.time < 70:
-            self.log_ticks_x.append(self.time)
-            #self.log_target_x.append(error_p_x)
-            #self.log_actual_x.append(state.vel_x)
-            self.log_target_x.append(target_z)
-            self.log_actual_x.append(-state.pos_y)
-            #target_y, state.pos_z
-
-
-        if self.time > 70:
-            if self.flag:
-                self.plot_pitch_performance("y")
-                self.flag = False
 
 
         #self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
@@ -375,7 +277,7 @@ class droneControlScheme(controlScheme):
         self.pitch_PI.evaluate_error_ki(state.tick)
         self.pitch_PI.saturation_i(-10.0, 10.0)
         #--------------------------------------------------
-        print("error_i_pitch: ", self.pitch_PI.pid_i_result)
+        #print("error_i_pitch: ", self.pitch_PI.pid_i_result)
         #-----------------------------------------------------
         self.pitch_PI.evaluate_error_kd(state.tick)
         #self.pitch_PI.saturation_d(-1.0, 1.0)
@@ -383,35 +285,11 @@ class droneControlScheme(controlScheme):
         pd = self.pitch_PI.pid_d_result
         #print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
-        if cmd_pitch > 25 or cmd_pitch < -25:
-            print("error_pi_pitch", cmd_pitch)
+
+        self.plottino.fillListsPlot(self.time, target_roll, roll, "roll")
+        print(f"t = {self.time}")
 
 
-
-
-        #print(f"roll: {cmd_roll}, pitch: {cmd_pitch}, yaw: {cmd_yaw}, target_thrust: {target_thrust}")
-
-
-        self.nframe = self.nframe + 1
-        #print(f"t: {self.time}")
-        self.time += state.tick
-        print(f"t: {self.time}")
-        if self.time < 100:
-            self.log_ticks.append(self.time)
-            self.log_target_pitch.append(target_pitch)
-            self.log_actual_pitch.append(pitch)
-            self.log_cmd_pitch.append(cmd_pitch)
-
-            self.log_target_roll.append(target_roll)
-            self.log_actual_roll.append(roll)
-            self.log_cmd_roll.append(cmd_roll)
-
-
-
-        if self.time>100:
-            if self.flag:
-                self.plot_pitch_performance("x")
-                self.flag = False
 
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
         return mixer(target_thrust, cmd_yaw, -cmd_roll, cmd_pitch, self.nframe)

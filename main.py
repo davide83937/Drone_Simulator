@@ -126,8 +126,6 @@ while True:
     )
 
     if n%3 == 0:
-
-
         # 4. INVIO COMANDI AI MOTORI SU GODOT
         dds.publish("w1", w1, DDS.DDS.DDS_TYPE_FLOAT)
         dds.publish("w2", w2, DDS.DDS.DDS_TYPE_FLOAT)
