@@ -31,39 +31,39 @@ class droneControlScheme(controlScheme):
         self.time = 0.0
         self.nframe = 0
 
-        self.plottino = plotManager(25)
+        self.plottino = plotManager(35)
 
 
         # --- CONTROLLORI ALTITUDINE (Asse Y in Godot) ---
         self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(10, 2, 2)
-        self.p_controller_altitude = pid.PID(0.5, 0, 0.1, 50)
-        self.pi_controller_speed_altitude = pid.PID(0.5, 0.35, 0.2, 30)
+        self.p_controller_altitude = pid.PID(0.28, 0, 0.05, 50)
+        self.pi_controller_speed_altitude = pid.PID(3.5, 2.5, 0.5, 30)
 
         # --- CONTROLLORI PIANO ORIZZONTALE (Assi X e Z) ---
         self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
-        self.p_controller_x = pid.PID(0.21, 0, 0, 0)
-        self.pi_controller_speed_x = pid.PID(2.5, 0.01, 0.17, 0)
+        self.p_controller_x = pid.PID(0.34, 0, 0, 0)
+        self.pi_controller_speed_x = pid.PID(1.25, 0.01, 1.85, 0)
 
         # Posizione e Velocità lungo Z (Genera il Pitch Target)
         self.p_controller_z = pid.PID(0.24, 0, 0, 0)
-        self.pi_controller_speed_z = pid.PID(0.25, 0.01, 0.15, 0)
+        self.pi_controller_speed_z = pid.PID(0.25, 0.01, 0.17, 0)
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
-        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(0.06, 0.005, 0.005, 0)
-        self.p_controller_angular = pid.PID(0.3, 0, 0, 0)
+        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(1, 0.2, 0.2, 0)
+        self.p_controller_angular = pid.PID(0.2, 0, 0, 0)
         #self.pi_controller_angular_speed = pid.PID(0.1, 0.1, 0.0, 0)
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
         #self.yaw_P = pid.PID(0.3, 0, 0, 0)
-        self.yaw_PI = pid.PID(0.1, 0.1, 0, 0)
+        self.yaw_PI = pid.PID(0.2, 0.0, 0.1, 0)
 
-        self.roll_P = pid.PID(0.5, 0, 0, 0)
-        self.roll_PI = pid.PID(0.1, 0.3, 0.02, 0)
+        self.roll_P = pid.PID(1.5, 0, 0, 0)
+        self.roll_PI = pid.PID(1.5, 0.3, 0.8, 0)
 
-        self.pitch_P = pid.PID(0.5, 0, 0, 0)
-        self.pitch_PI = pid.PID(0.1, 0.3, 0.5, 0)
+        self.pitch_P = pid.PID(1.5, 0, 0, 0)
+        self.pitch_PI = pid.PID(1.1, 0.3, 0.5, 0)
 
         #self.pitch_P = pid.PID(0.3, 0, 0, 0)
         #self.pitch_PI = pid.PID(0.1, 0.3, 0.01, 0)
@@ -91,7 +91,7 @@ class droneControlScheme(controlScheme):
         #print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
         #print(f"target_z, {state.pos_z}")
-        if state.pos_z > -10.0:
+        if state.pos_z > 0.0:
             _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
             target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
             angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
@@ -101,11 +101,11 @@ class droneControlScheme(controlScheme):
 
         # 2. CONTROLLO ALTITUDINE (ASSE Y VERTICALE)
         # Errore di posizione verticale (target_y vs pos_y)
-        print(f"Z : {state.pos_z}")
+        #print(f"Z : {state.pos_z}")
         self.p_controller_altitude.evaluate_error(target_y, state.pos_z)
         self.p_controller_altitude.evaluate_error_kp()
-        self.p_controller_altitude.saturation_p(-10.0, 10.0)
-        self.p_controller_altitude.evaluate_error_kd(state.tick)
+        self.p_controller_altitude.saturation_p(-5.0, 5.0)
+        #self.p_controller_altitude.evaluate_error_kd(state.tick)
 
         error_p_y = self.p_controller_altitude.evaluate_total_error()
         #print(f"error_p_y: {error_p_y}")
@@ -113,7 +113,7 @@ class droneControlScheme(controlScheme):
         # Errore di velocità verticale (error_p_y vs vel_y)
         self.pi_controller_speed_altitude.evaluate_error(error_p_y, state.vel_z)
         self.pi_controller_speed_altitude.evaluate_error_kp()
-        self.pi_controller_speed_altitude.saturation_p(-5.0, 5.0)
+        self.pi_controller_speed_altitude.saturation_p(-10.0, 10.0)
         self.pi_controller_speed_altitude.evaluate_error_ki(state.tick)
         self.pi_controller_speed_altitude.saturation_i(-15.0, 15.0)
         #print(f"i error: {self.pi_controller_speed_altitude.pid_i_result}")
@@ -145,7 +145,7 @@ class droneControlScheme(controlScheme):
 
         self.pi_controller_speed_x.evaluate_error(error_p_x, state.vel_x)
         self.pi_controller_speed_x.evaluate_error_kp()
-        self.pi_controller_speed_x.saturation_p(-17.5, 17.5)
+        self.pi_controller_speed_x.saturation_p(-20.0, 20.0)
         #print(f"vxp: {self.pi_controller_speed_x.pid_p_result}")
         self.pi_controller_speed_x.evaluate_error_ki(state.tick)
         self.pi_controller_speed_x.saturation_i(-0.01, 0.01)
@@ -162,21 +162,21 @@ class droneControlScheme(controlScheme):
 
 
         # 4. CONTROLLO POSIZIONE Z (LONGITUDINALE) -> GENERA TARGET PITCH
-        #print(f"state_y: {-state.pos_y}")
-        #print(f"target: {target_z}")
+        print(f"state_y: {-state.pos_y}")
+        print(f"target: {target_z}")
         self.p_controller_z.evaluate_error(target_z, -state.pos_y)
-        #print(f"Errore pz: {target_z- state.pos_y}")
+        print(f"Errore pz: {target_z- state.pos_y}")
         self.p_controller_z.evaluate_error_kp()
         #print(f"pz: {self.p_controller_z.pid_p_result}")
         self.p_controller_z.saturation_p(-20.0, 20.0)
         #self.p_controller_z.evaluate_error_kd(state.tick)
         error_p_z = -self.p_controller_z.evaluate_total_error()
 
-        self.pi_controller_speed_z.evaluate_error(error_p_z, state.vel_y)
+        self.pi_controller_speed_z.evaluate_error(error_p_z, -state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
-        self.pi_controller_speed_z.saturation_p(-10.0, 10.0)
+        self.pi_controller_speed_z.saturation_p(-20.0, 20.0)
         self.pi_controller_speed_z.evaluate_error_ki(state.tick)
-        self.pi_controller_speed_z.saturation_i(-0.1, 0.1)
+        self.pi_controller_speed_z.saturation_i(-0.01, 0.01)
         self.pi_controller_speed_z.evaluate_error_kd(state.tick)
         raw_target_pitch = -self.pi_controller_speed_z.evaluate_total_error()
         #print(f"speed_target_pitch = {raw_target_pitch}")
@@ -191,20 +191,12 @@ class droneControlScheme(controlScheme):
         #print(f"angle_magne: {state.yaw_magnetometer}")
         self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
         self.p_controller_angular.evaluate_error_kp()
-        self.p_controller_angular.saturation_p(-10.0, 10.0)
+        self.p_controller_angular.saturation_p(-5.0, 5.0)
+        #print(f"ypP: {self.p_controller_angular.pid_p_result}")
         error_angular = self.p_controller_angular.evaluate_total_error()
         #print(f"yaw_p_error: {error_angular}")
 
-
-
-
-        #self.pi_controller_angular_speed.evaluate_error(error_angular, state.angular_velocity)
-        #self.pi_controller_angular_speed.evaluate_error_kp()
-        #self.pi_controller_angular_speed.saturation_p(-10.0, 10.0)
-        #self.pi_controller_angular_speed.evaluate_error_ki(state.tick)
-        #self.pi_controller_angular_speed.saturation_i(-10.0, 10.0)
-        #target_yaw_rate = self.pi_controller_angular_speed.evaluate_total_error()
-
+        self.plottino.fillListsPlot(self.time, target_z, -state.pos_y, error_p_z, "z")
         #print(f"target_yaw: {target_yaw_rate}")
         #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
         return thrust_cmd, target_roll, target_pitch, error_angular
@@ -215,19 +207,20 @@ class droneControlScheme(controlScheme):
         LOOP INTERNO (Target Assetto/Ratei -> Comandi Motori al Mixer)
         """
 
-        # --- CONTROLLO YAW (IMBARDATA) ---
-        #self.yaw_P.evaluate_error(target_yaw_rate, yaw)
-        #self.yaw_P.evaluate_error_kp()
-        #self.yaw_P.saturation_p(-1.0, 1.0)
-        #error_p_yaw = self.yaw_P.evaluate_total_error()
-
         self.yaw_PI.evaluate_error(target_yaw_rate, speed_yaw)
         self.yaw_PI.evaluate_error_kp()
-        self.yaw_PI.evaluate_error_ki(state.tick)
-        self.yaw_PI.saturation_i(-20.0, 20.0)
+        self.yaw_PI.saturation_p(-5.0, 5.0)
+        #print(f"yp: {self.yaw_PI.pid_p_result}")
+        #self.yaw_PI.evaluate_error_ki(state.tick)
+        #self.yaw_PI.saturation_i(-1.1, 1.0)
+        self.yaw_PI.evaluate_error_kd(state.tick)
+        self.yaw_PI.saturation_d(-5.0, 5.0)
+        #print(f"yd: {self.yaw_PI.pid_d_result}")
         cmd_yaw = self.yaw_PI.evaluate_total_error()
+        MAX_YAW_CMD = 25.0
+        cmd_yaw = max(min(cmd_yaw, MAX_YAW_CMD), -MAX_YAW_CMD)
 
-
+        self.plottino.fillListsPlot(self.time, target_yaw_rate, speed_yaw, cmd_yaw, "yaw")
         #target_roll = 0
         #target_pitch = 0
         #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}, target_yaw_rate: {target_yaw_rate}")
@@ -243,14 +236,12 @@ class droneControlScheme(controlScheme):
         # 2. Controllo della velocità angolare di Roll
         self.roll_PI.evaluate_error(error_p_roll, speed_roll)
         self.roll_PI.evaluate_error_kp()
-        self.roll_PI.saturation_p(-5.0, 5.0)
-        #error_p_roll = self.roll_PI.evaluate_total_error()
+        self.roll_PI.saturation_p(-15.0, 15.0)
         self.roll_PI.evaluate_error_ki(state.tick)
         self.roll_PI.saturation_i(-10, 10)
         self.roll_PI.evaluate_error_kd(state.tick)
         self.roll_PI.saturation_d(-5, 5)
         cmd_roll = self.roll_PI.evaluate_total_error()
-        #print("cmd_roll", cmd_roll)
 
 
 
@@ -271,25 +262,28 @@ class droneControlScheme(controlScheme):
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
-        self.pitch_PI.saturation_p(-5.0, 5.0)
+        self.pitch_PI.saturation_p(-15.0, 15.0)
         pp = self.pitch_PI.pid_p_result
         #print("pp", pp)
         self.pitch_PI.evaluate_error_ki(state.tick)
         self.pitch_PI.saturation_i(-10.0, 10.0)
-        #--------------------------------------------------
-        #print("error_i_pitch: ", self.pitch_PI.pid_i_result)
         #-----------------------------------------------------
-        self.pitch_PI.evaluate_error_kd(state.tick)
+        #print("error_i_pitch: ", self.pitch_PI.pid_i_result)#
+        #-----------------------------------------------------
         #self.pitch_PI.saturation_d(-1.0, 1.0)
+        self.pitch_PI.evaluate_error_kd(state.tick)
         self.pitch_PI.saturation_d(-5, 5)
         pd = self.pitch_PI.pid_d_result
         #print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
 
-        self.plottino.fillListsPlot(self.time, target_roll, roll, "roll")
+        #self.plottino.fillListsPlot(self.time, target_roll, roll, "roll")
         print(f"t = {self.time}")
+        self.nframe += 1
+        print(f"n = {self.nframe}")
 
-
+        if roll > 0.35:
+            print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
 
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
         return mixer(target_thrust, cmd_yaw, -cmd_roll, cmd_pitch, self.nframe)
