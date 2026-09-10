@@ -1,10 +1,12 @@
 import math
+import rclpy
 from abc import ABC, abstractmethod
 from control_lib import VirtualRobot
 from control_lib import pid
 from control_scheme.state import State
 from control_scheme.mixer import mixer
-from plotting.plotManager import plotManager
+
+from publisher_ros.publishers import PublisherNode
 
 
 class controlScheme(ABC):
@@ -30,8 +32,11 @@ class droneControlScheme(controlScheme):
     def __init__(self):
         self.time = 0.0
         self.nframe = 0
+        rclpy.init()
+        self.node = PublisherNode()
 
-        self.plottino = plotManager(35)
+
+        #self.plottino = plotManager(30)
 
 
         # --- CONTROLLORI ALTITUDINE (Asse Y in Godot) ---
@@ -44,26 +49,26 @@ class droneControlScheme(controlScheme):
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
         self.p_controller_x = pid.PID(0.34, 0, 0, 0)
-        self.pi_controller_speed_x = pid.PID(1.25, 0.01, 1.85, 0)
+        self.pi_controller_speed_x = pid.PID(1.25, 0.01, 1.25, 0)
 
         # Posizione e Velocità lungo Z (Genera il Pitch Target)
-        self.p_controller_z = pid.PID(0.24, 0, 0, 0)
-        self.pi_controller_speed_z = pid.PID(0.25, 0.01, 0.17, 0)
+        self.p_controller_z = pid.PID(0.34, 0, 0, 0)
+        self.pi_controller_speed_z = pid.PID(0.8, 0.01, 1.55, 0)
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
-        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(1, 0.2, 0.2, 0)
-        self.p_controller_angular = pid.PID(0.2, 0, 0, 0)
+        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(5, 2, 2, 0)
+        self.p_controller_angular = pid.PID(1.8, 0, 0, 0)
         #self.pi_controller_angular_speed = pid.PID(0.1, 0.1, 0.0, 0)
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
         #self.yaw_P = pid.PID(0.3, 0, 0, 0)
-        self.yaw_PI = pid.PID(0.2, 0.0, 0.1, 0)
+        self.yaw_PI = pid.PID(0.3, 0.0, 1.0, 0)
 
         self.roll_P = pid.PID(1.5, 0, 0, 0)
         self.roll_PI = pid.PID(1.5, 0.3, 0.8, 0)
 
         self.pitch_P = pid.PID(1.5, 0, 0, 0)
-        self.pitch_PI = pid.PID(1.1, 0.3, 0.5, 0)
+        self.pitch_PI = pid.PID(1.1, 0.3, 0.8, 0)
 
         #self.pitch_P = pid.PID(0.3, 0, 0, 0)
         #self.pitch_PI = pid.PID(0.1, 0.3, 0.01, 0)
@@ -91,7 +96,7 @@ class droneControlScheme(controlScheme):
         #print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
         #print(f"target_z, {state.pos_z}")
-        if state.pos_z > 0.0:
+        if state.pos_z > 0.2:
             _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
             target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
             angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
@@ -162,15 +167,15 @@ class droneControlScheme(controlScheme):
 
 
         # 4. CONTROLLO POSIZIONE Z (LONGITUDINALE) -> GENERA TARGET PITCH
-        print(f"state_y: {-state.pos_y}")
-        print(f"target: {target_z}")
+        #print(f"state_y: {-state.pos_y}")
+        #print(f"target: {target_z}")
         self.p_controller_z.evaluate_error(target_z, -state.pos_y)
-        print(f"Errore pz: {target_z- state.pos_y}")
+        #print(f"Errore pz: {target_z- state.pos_y}")
         self.p_controller_z.evaluate_error_kp()
         #print(f"pz: {self.p_controller_z.pid_p_result}")
         self.p_controller_z.saturation_p(-20.0, 20.0)
         #self.p_controller_z.evaluate_error_kd(state.tick)
-        error_p_z = -self.p_controller_z.evaluate_total_error()
+        error_p_z = self.p_controller_z.evaluate_total_error()
 
         self.pi_controller_speed_z.evaluate_error(error_p_z, -state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
@@ -191,14 +196,30 @@ class droneControlScheme(controlScheme):
         #print(f"angle_magne: {state.yaw_magnetometer}")
         self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
         self.p_controller_angular.evaluate_error_kp()
-        self.p_controller_angular.saturation_p(-5.0, 5.0)
-        #print(f"ypP: {self.p_controller_angular.pid_p_result}")
+        self.p_controller_angular.saturation_p(-50.0, 50.0)
+        print(f"ypP: {self.p_controller_angular.pid_p_result}")
         error_angular = self.p_controller_angular.evaluate_total_error()
         #print(f"yaw_p_error: {error_angular}")
 
-        self.plottino.fillListsPlot(self.time, target_z, -state.pos_y, error_p_z, "z")
+        self.node.invia(self.time, angle_target, state.yaw_magnetometer, error_angular, "yaw")
         #print(f"target_yaw: {target_yaw_rate}")
         #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
+        yaw_rad = math.radians(state.yaw_magnetometer)
+
+
+        cmd_x = raw_target_roll
+        cmd_z = raw_target_pitch
+        raw_target_roll = cmd_x * math.cos(yaw_rad) + cmd_z * math.sin(yaw_rad)
+        raw_target_pitch = cmd_x * math.sin(yaw_rad) - cmd_z * math.cos(yaw_rad)
+
+        self.node.invia(self.time, target_z, -state.pos_y, error_p_z, "error_z")
+        #self.plottino.fillListsPlot(self.time, target_z, -state.pos_y, error_p_z, "error_z")
+
+        # --- SATURAZIONE ---
+        MAX_ANGLE = 30.0
+        target_roll = max(min(raw_target_roll, MAX_ANGLE), -MAX_ANGLE)
+        target_pitch = max(min(raw_target_pitch, MAX_ANGLE), -MAX_ANGLE)
+
         return thrust_cmd, target_roll, target_pitch, error_angular
 
     def inner_loop(self, state, target_thrust, target_roll, target_pitch, target_yaw_rate,
@@ -209,18 +230,18 @@ class droneControlScheme(controlScheme):
 
         self.yaw_PI.evaluate_error(target_yaw_rate, speed_yaw)
         self.yaw_PI.evaluate_error_kp()
-        self.yaw_PI.saturation_p(-5.0, 5.0)
+        self.yaw_PI.saturation_p(-15.0, 15.0)
         #print(f"yp: {self.yaw_PI.pid_p_result}")
         #self.yaw_PI.evaluate_error_ki(state.tick)
         #self.yaw_PI.saturation_i(-1.1, 1.0)
         self.yaw_PI.evaluate_error_kd(state.tick)
-        self.yaw_PI.saturation_d(-5.0, 5.0)
+        self.yaw_PI.saturation_d(-10.0, 10.0)
         #print(f"yd: {self.yaw_PI.pid_d_result}")
         cmd_yaw = self.yaw_PI.evaluate_total_error()
         MAX_YAW_CMD = 25.0
         cmd_yaw = max(min(cmd_yaw, MAX_YAW_CMD), -MAX_YAW_CMD)
 
-        self.plottino.fillListsPlot(self.time, target_yaw_rate, speed_yaw, cmd_yaw, "yaw")
+        #self.plottino.fillListsPlot(self.time, target_yaw_rate, speed_yaw, cmd_yaw, "yaw")
         #target_roll = 0
         #target_pitch = 0
         #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}, target_yaw_rate: {target_yaw_rate}")
@@ -277,7 +298,7 @@ class droneControlScheme(controlScheme):
         #print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
 
-        #self.plottino.fillListsPlot(self.time, target_roll, roll, "roll")
+        #self.plottino.fillListsPlot(self.time, target_pitch, pitch, cmd_pitch,"pitch")
         print(f"t = {self.time}")
         self.nframe += 1
         print(f"n = {self.nframe}")

@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from utils.geometry import normalize_angle
+from lib.utils.geometry import normalize_angle
 
 
 # ------------------------------------------------------------

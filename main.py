@@ -1,11 +1,10 @@
 import math
-import time
 
 from control_lib import SensorFusion
 from lib.dds import dds as DDS
 from lib.utils.time import *
 from my_math import sensor_math as sm
-from control_lib import *
+
 from control_scheme import state
 from control_scheme import control_scheme
 
@@ -14,14 +13,14 @@ dds.start('127.0.0.1', 4445)
 ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
-angle_target = math.radians(0)
+angle_target = math.radians(80)
 
-z_end = 50
+z_end = 0
 z_end = -z_end
 
 
 drone_control_scheme.start(
-    y_start=0.0, y_end=50.0,
+    y_start=0.0, y_end=30.0,
     z_start=0.0, x_start=0.0,
     z_end=z_end, x_end=0.0,
     ang_start=0.0, ang_end=angle_target
@@ -87,7 +86,9 @@ while True:
     roll_acc, pitch_acc = sm.get_roll_pitch_accelerometer(a_x, a_z, a_y)
     yaw_magnetometer = sm.get_yaw_from_magnetometer(b_x, b_y)
     delta_yaw = (yaw_magnetometer - previous_yaw + 180) % 360 - 180
-    angular_velocity = delta_yaw / delta_t
+    angular_velocity = 0.0
+    if delta_t != 0.0:
+        angular_velocity = delta_yaw / delta_t
 
     current_state = state.State(
         tick= tick,

@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+
 class plotManager:
     def __init__(self, time_end):
         self.log_ticks = []
@@ -8,6 +9,7 @@ class plotManager:
         self.log_cmd = []
         self.time_end = time_end
         self.flag = False
+
 
     def fillListsPlot(self, time, target, actual, cmd, mode):
         if time < self.time_end:
