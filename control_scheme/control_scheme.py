@@ -57,7 +57,7 @@ class droneControlScheme(controlScheme):
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
         self.virtualRobotAngular = VirtualRobot.StraightLineMotion(5, 2, 2, 0)
-        self.p_controller_angular = pid.PID(1.8, 0, 0, 0)
+        self.p_controller_angular = pid.PID(1.8, 0, 5.3, 0)
         #self.pi_controller_angular_speed = pid.PID(0.1, 0.1, 0.0, 0)
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
@@ -194,14 +194,18 @@ class droneControlScheme(controlScheme):
 
         # 5. CONTROLLO ANGOLARE (YAW)
         #print(f"angle_magne: {state.yaw_magnetometer}")
+        #print(f"angle_target: {angle_target}")
         self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
         self.p_controller_angular.evaluate_error_kp()
         self.p_controller_angular.saturation_p(-50.0, 50.0)
-        print(f"ypP: {self.p_controller_angular.pid_p_result}")
+        #print(f"ypP: {self.p_controller_angular.pid_p_result}")
+        self.p_controller_angular.evaluate_error_kd(state.tick)
+        self.p_controller_angular.saturation_d(-60.0, 60.0)
         error_angular = self.p_controller_angular.evaluate_total_error()
         #print(f"yaw_p_error: {error_angular}")
 
-        self.node.invia(self.time, angle_target, state.yaw_magnetometer, error_angular, "yaw")
+
+        #self.node.invia(self.time, angle_target, state.yaw_magnetometer, error_angular, "yaw")
         #print(f"target_yaw: {target_yaw_rate}")
         #print(f"target_roll: {target_roll}, target_pitch: {target_pitch}")
         yaw_rad = math.radians(state.yaw_magnetometer)
@@ -212,7 +216,7 @@ class droneControlScheme(controlScheme):
         raw_target_roll = cmd_x * math.cos(yaw_rad) + cmd_z * math.sin(yaw_rad)
         raw_target_pitch = cmd_x * math.sin(yaw_rad) - cmd_z * math.cos(yaw_rad)
 
-        self.node.invia(self.time, target_z, -state.pos_y, error_p_z, "error_z")
+        #self.node.invia(self.time, target_z, -state.pos_y, error_p_z, "error_z")
         #self.plottino.fillListsPlot(self.time, target_z, -state.pos_y, error_p_z, "error_z")
 
         # --- SATURAZIONE ---
@@ -304,7 +308,7 @@ class droneControlScheme(controlScheme):
         print(f"n = {self.nframe}")
 
         if roll > 0.35:
-            print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
-
+            #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+            pass
         # --- DISTRIBUZIONE AI MOTORI TRAMITE MIXER ---
         return mixer(target_thrust, cmd_yaw, -cmd_roll, cmd_pitch, self.nframe)

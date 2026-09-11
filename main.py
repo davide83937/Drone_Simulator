@@ -13,9 +13,9 @@ dds.start('127.0.0.1', 4445)
 ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
-angle_target = math.radians(80)
+angle_target = math.radians(0)
 
-z_end = 0
+z_end = 50
 z_end = -z_end
 
 
@@ -110,7 +110,9 @@ while True:
     ekf.update(roll_acc, pitch_acc, yaw_magnetometer)
 
     # 1. ESTRAZIONE DEGLI ANGOLI PER IL CONTROLLORE (dall'EKF)
-    #roll, pitch, yaw = ekf.get_euler_angles()
+    print(f"CHEAT: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+    roll, pitch, yaw = ekf.get_euler_angles()
+    print(f"EKF: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
     #roll = roll+130
     #pitch = pitch-80
 
