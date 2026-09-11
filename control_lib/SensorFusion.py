@@ -60,6 +60,7 @@ class DroneEKF:
         """
         # CORREZIONE 2: Convertiamo gli angoli misurati in RADIANTI prima di calcolare il Quaternione
         roll_rad = math.radians(roll_acc_deg)
+        print(f"roll_acc_deg: {roll_acc_deg}")
         pitch_rad = math.radians(pitch_acc_deg)
         yaw_rad = math.radians(yaw_mag_deg)
 

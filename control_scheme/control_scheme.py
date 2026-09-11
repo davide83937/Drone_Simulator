@@ -48,8 +48,8 @@ class droneControlScheme(controlScheme):
         self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
-        self.p_controller_x = pid.PID(0.34, 0, 0, 0)
-        self.pi_controller_speed_x = pid.PID(1.25, 0.01, 1.25, 0)
+        self.p_controller_x = pid.PID(0.44, 0, 0, 0)
+        self.pi_controller_speed_x = pid.PID(0.8, 0.01, 1.55, 0)
 
         # Posizione e Velocità lungo Z (Genera il Pitch Target)
         self.p_controller_z = pid.PID(0.34, 0, 0, 0)

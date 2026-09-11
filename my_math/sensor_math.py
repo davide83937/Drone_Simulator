@@ -37,7 +37,7 @@ def from180to360(yaw_deg):
 def get_roll_pitch_accelerometer(ax, ay, az):
     if ax == None or ay == None or az == None:
         return 0, 0
-    roll_rad = math.atan2(ax, ay)
+    roll_rad = math.atan2(-ax, ay)
     pitch_rad = math.atan2(az, math.sqrt(ax ** 2 + ay ** 2))
     roll_deg, pitch_deg = math.degrees(roll_rad), math.degrees(pitch_rad)
     return roll_deg, pitch_deg

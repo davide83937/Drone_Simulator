@@ -13,9 +13,9 @@ dds.start('127.0.0.1', 4445)
 ekf = SensorFusion.DroneEKF()
 drone_control_scheme = control_scheme.droneControlScheme()
 
-angle_target = math.radians(0)
+angle_target = math.radians(80)
 
-z_end = 0
+z_end = 50
 z_end = -z_end
 
 
