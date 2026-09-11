@@ -15,14 +15,14 @@ drone_control_scheme = control_scheme.droneControlScheme()
 
 angle_target = math.radians(0)
 
-z_end = 50
+z_end = 0
 z_end = -z_end
 
 
 drone_control_scheme.start(
     y_start=0.0, y_end=30.0,
     z_start=0.0, x_start=0.0,
-    z_end=z_end, x_end=0.0,
+    z_end=z_end, x_end=70.0,
     ang_start=0.0, ang_end=angle_target
 )
 
@@ -103,8 +103,12 @@ while True:
         vel_y=vel_y,
         vel_z=vel_z
     )
+
+    rot_x_deg = math.degrees(rot_x)
+    rot_y_deg = math.degrees(rot_y)
+    rot_z_deg = math.degrees(rot_z)
     #y = roll, z = pitch,  x=yaw
-    gyro = [rot_y, rot_z, rot_x]
+    gyro = [rot_z, rot_x, rot_y]
 
     ekf.predict(gyro, delta_t)
     ekf.update(roll_acc, pitch_acc, yaw_magnetometer)

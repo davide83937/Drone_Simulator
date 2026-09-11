@@ -211,8 +211,8 @@ class droneControlScheme(controlScheme):
         yaw_rad = math.radians(state.yaw_magnetometer)
 
 
-        cmd_x = raw_target_roll
-        cmd_z = raw_target_pitch
+        cmd_x = target_roll
+        cmd_z = target_pitch
         raw_target_roll = cmd_x * math.cos(yaw_rad) + cmd_z * math.sin(yaw_rad)
         raw_target_pitch = cmd_x * math.sin(yaw_rad) - cmd_z * math.cos(yaw_rad)
 
