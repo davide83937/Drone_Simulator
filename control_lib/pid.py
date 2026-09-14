@@ -16,8 +16,16 @@ class PID:
         self.pid_d_result = 0
 
 
+    def reset_derivative(self):
+        self.error = 0
+        self.previousError = 0
+
     def reset_integral(self):
         self.pid_i_result = 0
+
+    def reset(self):
+        self.reset_integral()
+        self.reset_derivative()
 
     def evaluate_error(self, target, actual_value):
         self.previousError = self.error

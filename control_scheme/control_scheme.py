@@ -32,7 +32,7 @@ class droneControlScheme(controlScheme):
     def __init__(self):
         self.time = 0.0
         self.nframe = 0
-        rclpy.init()
+
         self.node = PublisherNode()
 
 
@@ -58,10 +58,10 @@ class droneControlScheme(controlScheme):
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
         self.virtualRobotAngular = VirtualRobot.StraightLineMotion(5, 2, 2, 0)
         self.p_controller_angular = pid.PID(1.8, 0, 5.3, 0)
-        #self.pi_controller_angular_speed = pid.PID(0.1, 0.1, 0.0, 0)
+
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
-        #self.yaw_P = pid.PID(0.3, 0, 0, 0)
+
         self.yaw_PI = pid.PID(0.3, 0.0, 1.0, 0)
 
         self.roll_P = pid.PID(1.5, 0, 0, 0)
@@ -70,8 +70,7 @@ class droneControlScheme(controlScheme):
         self.pitch_P = pid.PID(1.5, 0, 0, 0)
         self.pitch_PI = pid.PID(1.1, 0.3, 0.8, 0)
 
-        #self.pitch_P = pid.PID(0.3, 0, 0, 0)
-        #self.pitch_PI = pid.PID(0.1, 0.3, 0.01, 0)
+
 #---------------------------------------------------------------------------------------------------------
     def start(self, **kwargs):
         # Altitudine lungo Y
@@ -82,6 +81,19 @@ class droneControlScheme(controlScheme):
         self.virtualRobotAngular.start_motion([kwargs['ang_start']], [kwargs['ang_end']])
 
 
+    def reset_pid(self):
+        #self.p_controller_altitude.reset()
+        #self.pi_controller_speed_altitude.reset()
+        #self.p_controller_x.reset()
+        self.pi_controller_speed_x.reset()
+        #self.p_controller_z.reset()
+        self.pi_controller_speed_z.reset()
+        #self.p_controller_angular.reset()
+        #self.yaw_PI.reset()
+        #self.roll_P.reset()
+        self.roll_PI.reset()
+        #self.pitch_P.reset()
+        self.pitch_PI.reset()
 
     def outer_loop(self, delta_t, state: State):
 

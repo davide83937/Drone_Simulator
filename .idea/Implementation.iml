@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/lib" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
+    <content url="file://$MODULE_DIR$/../../../../ros2-windows/install/custom_interfaces/lib/site-packages" />
     <orderEntry type="jdk" jdkName="~\OneDrive\Desktop\ros2-windows\.pixi\envs\default" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

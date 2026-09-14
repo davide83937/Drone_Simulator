@@ -1,7 +1,5 @@
 import math
-
 import numpy as np
-
 from lib.utils.geometry import normalize_angle
 
 
