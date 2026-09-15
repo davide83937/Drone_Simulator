@@ -2,6 +2,10 @@ extends Node3D
 
 @export var body: RigidBody3D
 
+# --- IMPOSTAZIONI RUMORE (Visibili nell'Inspector) ---
+@export var enable_noise: bool = true
+@export var noise_std_dev: float = 0.5 # Deviazione standard in m/s²
+
 var g = Vector3(0.0, -9.81, 0.0)
 var pos_x_pre = 0.0
 var pos_y_pre = 0.0
@@ -10,11 +14,17 @@ var vel_x_pre = 0.0
 var vel_y_pre = 0.0
 var vel_z_pre = 0.0
 
+var rng = RandomNumberGenerator.new()
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	pass # Replace with function body.
+	rng.randomize()
 
 func _physics_process(delta: float) -> void:
+	# Protezione di sicurezza contro la divisione per zero
+	if delta <= 0.0:
+		return
+		
 	var pos_x = body.position.x
 	var pos_y = body.position.y
 	var pos_z = body.position.z
@@ -29,12 +39,13 @@ func _physics_process(delta: float) -> void:
 	var a = body.global_transform.basis.inverse()*Vector3(ax, ay, az)
 	var g_local = body.global_transform.basis.inverse() * g
 	var f = a - g_local
-	#print("fx ",f.x)
-	#print("fy ",f.y)
-	#print("fz ",f.z)
-	#print("posx ",pos_x)
-	#print("posy ",pos_y)
-	#print("posz ",pos_z)
+	
+	# --- AGGIUNTA DEL RUMORE GAUSSIANO ---
+	if enable_noise:
+		f.x += rng.randfn(0.0, noise_std_dev)
+		f.y += rng.randfn(0.0, noise_std_dev)
+		f.z += rng.randfn(0.0, noise_std_dev)
+	
 	DDS.publish("pos_x", DDS.DDS_TYPE_FLOAT, pos_x)
 	DDS.publish("pos_y", DDS.DDS_TYPE_FLOAT, pos_y)
 	DDS.publish("pos_z", DDS.DDS_TYPE_FLOAT, pos_z)
@@ -51,7 +62,6 @@ func _physics_process(delta: float) -> void:
 	vel_x_pre = vel_x
 	vel_y_pre = vel_y
 	vel_z_pre = vel_z
-
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:	
