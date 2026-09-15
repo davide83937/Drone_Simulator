@@ -35,11 +35,12 @@ class MoveRobotServer(Node):
 
         #self.drone_control_scheme.reset_pid()
         self.drone_control_scheme.start(
-            y_start=self.state.pos_y, y_end=target_pos.y,
-            z_start=self.state.pos_z, x_start=self.state.pos_x,
+            y_start=self.state.pos_z, y_end=target_pos.y,
+            z_start=self.state.pos_y, x_start=self.state.pos_x,
             z_end=z_end, x_end=target_pos.x,
             ang_start=self.state.yaw_magnetometer, ang_end=angle_target
         )
+
 
 
 

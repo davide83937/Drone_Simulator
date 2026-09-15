@@ -41,8 +41,8 @@ class droneControlScheme(controlScheme):
 
         # --- CONTROLLORI ALTITUDINE (Asse Y in Godot) ---
         self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(10, 2, 2)
-        self.p_controller_altitude = pid.PID(0.28, 0, 0.05, 50)
-        self.pi_controller_speed_altitude = pid.PID(3.5, 2.5, 0.5, 30)
+        self.p_controller_altitude = pid.PID(0.28, 0, 0.15, 50)
+        self.pi_controller_speed_altitude = pid.PID(3.5, 5.0, 0.5, 30)
 
         # --- CONTROLLORI PIANO ORIZZONTALE (Assi X e Z) ---
         self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
@@ -132,8 +132,8 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_altitude.evaluate_error_kp()
         self.pi_controller_speed_altitude.saturation_p(-10.0, 10.0)
         self.pi_controller_speed_altitude.evaluate_error_ki(state.tick)
-        self.pi_controller_speed_altitude.saturation_i(-15.0, 15.0)
-        #print(f"i error: {self.pi_controller_speed_altitude.pid_i_result}")
+        self.pi_controller_speed_altitude.saturation_i(-10.0, 10.0)
+        print(f"i error: {self.pi_controller_speed_altitude.pid_i_result}")
         self.pi_controller_speed_altitude.evaluate_error_kd(state.tick)
         error_v_y = self.pi_controller_speed_altitude.evaluate_total_error()
         #print(f"error_v_y: {error_v_y}")
@@ -141,7 +141,7 @@ class droneControlScheme(controlScheme):
 
 
         # Spinta di sostentamento (Feed-Forward per la gravità) + correzione PID
-        HOVER_THRUST = 9.81*9  # Valore di spinta necessario per sostenere il peso del drone
+        HOVER_THRUST = 9.81*10  # Valore di spinta necessario per sostenere il peso del drone
         thrust_cmd = HOVER_THRUST + error_v_y
         if thrust_cmd < HOVER_THRUST:
             thrust_cmd = HOVER_THRUST
@@ -207,7 +207,13 @@ class droneControlScheme(controlScheme):
         # 5. CONTROLLO ANGOLARE (YAW)
         #print(f"angle_magne: {state.yaw_magnetometer}")
         #print(f"angle_target: {angle_target}")
-        self.p_controller_angular.evaluate_error(angle_target, state.yaw_magnetometer)
+        raw_yaw_error = angle_target - state.yaw_magnetometer
+
+        # Normalizziamo l'errore nel range il percorso più breve [-180, 180]
+        normalized_yaw_error = (raw_yaw_error + 180.0) % 360.0 - 180.0
+
+        # Inganniamo il PID passandogli l'errore normalizzato come target, e 0.0 come posizione
+        self.p_controller_angular.evaluate_error(normalized_yaw_error, 0.0)
         self.p_controller_angular.evaluate_error_kp()
         self.p_controller_angular.saturation_p(-50.0, 50.0)
         #print(f"ypP: {self.p_controller_angular.pid_p_result}")

@@ -119,12 +119,12 @@ try:
         vel_x = dds.read('vel_x')
         vel_y = dds.read('vel_y')
         vel_z = dds.read('vel_z')
-        roll = dds.read('roll')
-        pitch = dds.read('pitch')
-        yaw = dds.read('yaw')
+        #roll = dds.read('roll')
+        #pitch = dds.read('pitch')
+        #yaw = dds.read('yaw')
 
         if None in (rot_x, rot_y, rot_z, a_x, a_y, a_z, b_x, b_y, b_z, delta_t,
-                    pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, roll, pitch, yaw):
+                    pos_x, pos_y, pos_z, vel_x, vel_y, vel_z):
             continue
         #print(f"b_x: {b_x}, b_y: {b_y}, b_z: {b_z}")
         #print(f"pos_x: {pos_x}, pos_y: {pos_y}, pos_z: {pos_z}")
@@ -147,21 +147,23 @@ try:
         current_state.vel_y = vel_y
         current_state.vel_z = vel_z
 
+        #print(f"current_state: {current_state.pos_x}, y: {current_state.pos_y}, z: {current_state.pos_z}")
+
         rot_x_deg = math.degrees(rot_x)
         rot_y_deg = math.degrees(rot_y)
         rot_z_deg = math.degrees(rot_z)
         #y = roll, z = pitch,  x=yaw
-        gyro = [rot_z, rot_x, rot_y]
+        #gyro = [rot_z, rot_x, rot_y]
+        gyro = [rot_y, rot_x, rot_z]
 
         ekf.predict(gyro, delta_t)
         ekf.update(roll_acc, pitch_acc, yaw_magnetometer)
 
         # 1. ESTRAZIONE DEGLI ANGOLI PER IL CONTROLLORE (dall'EKF)
-        print(f"CHEAT: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+        #print(f"CHEAT: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
         roll, pitch, yaw = ekf.get_euler_angles()
-        print(f"EKF: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
-        #roll = roll+130
-        #pitch = pitch-80
+        #print(f"EKF: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
+
 
         #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
 
@@ -174,6 +176,8 @@ try:
             roll, pitch, yaw,
             rot_y, rot_z, rot_x
         )
+
+
 
         if n%3 == 0:
             # 4. INVIO COMANDI AI MOTORI SU GODOT
