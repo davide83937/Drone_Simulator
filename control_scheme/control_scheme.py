@@ -34,11 +34,7 @@ class droneControlScheme(controlScheme):
         self.nframe = 0
 
         self.node = PublisherNode()
-
-
         #self.plottino = plotManager(30)
-
-
         # --- CONTROLLORI ALTITUDINE (Asse Y in Godot) ---
         self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(10, 2, 2)
         self.p_controller_altitude = pid.PID(0.28, 0, 0.15, 50)
@@ -82,18 +78,20 @@ class droneControlScheme(controlScheme):
 
 
     def reset_pid(self):
+
         #self.p_controller_altitude.reset()
         #self.pi_controller_speed_altitude.reset()
         #self.p_controller_x.reset()
-        self.pi_controller_speed_x.reset()
+        #self.pi_controller_speed_x.reset()
         #self.p_controller_z.reset()
-        self.pi_controller_speed_z.reset()
+        #self.pi_controller_speed_z.reset()
         #self.p_controller_angular.reset()
         #self.yaw_PI.reset()
         #self.roll_P.reset()
-        self.roll_PI.reset()
+        #self.roll_PI.reset()
         #self.pitch_P.reset()
-        self.pitch_PI.reset()
+        #self.pitch_PI.reset()
+        pass
 
     def outer_loop(self, delta_t, state: State):
 
@@ -101,14 +99,14 @@ class droneControlScheme(controlScheme):
         LOOP ESTERNO (Posizione -> Velocità -> Target di Inclinazione e Spinta)
         """
         # 1. VALUTAZIONE DEI VIRTUAL ROBOT (SETPOINTS TRAIETTORIA)
-        target_y = 20
+        target_y = 0
         target_z, target_x = 0, 0
         angle_target = 0
         self.time += delta_t
         #print("angle_target:", angle_target)
         #print(f"target_y: {target_y}, target_z: {target_z}, angle_target: {angle_target}")
         #print(f"target_z, {state.pos_z}")
-        if state.pos_z > 0.2:
+        if state.pos_z > -0.2:
             _, target_y = self.virtualRobotAltitude.evaluate(delta_t)
             target_z, target_x = self.virtualRobotXY.evaluate(delta_t)
             angle_target = self.virtualRobotAngular.evaluate(delta_t)[0]
@@ -133,7 +131,7 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_altitude.saturation_p(-10.0, 10.0)
         self.pi_controller_speed_altitude.evaluate_error_ki(state.tick)
         self.pi_controller_speed_altitude.saturation_i(-10.0, 10.0)
-        print(f"i error: {self.pi_controller_speed_altitude.pid_i_result}")
+        #print(f"i error: {self.pi_controller_speed_altitude.pid_i_result}")
         self.pi_controller_speed_altitude.evaluate_error_kd(state.tick)
         error_v_y = self.pi_controller_speed_altitude.evaluate_total_error()
         #print(f"error_v_y: {error_v_y}")
@@ -192,8 +190,10 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_z.evaluate_error(error_p_z, -state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
         self.pi_controller_speed_z.saturation_p(-20.0, 20.0)
+        print(f"vzp: {self.pi_controller_speed_z.pid_p_result}")
         self.pi_controller_speed_z.evaluate_error_ki(state.tick)
         self.pi_controller_speed_z.saturation_i(-0.01, 0.01)
+        #print(f"vzi: {self.pi_controller_speed_z.pid_i_result}")
         self.pi_controller_speed_z.evaluate_error_kd(state.tick)
         raw_target_pitch = -self.pi_controller_speed_z.evaluate_total_error()
         #print(f"speed_target_pitch = {raw_target_pitch}")
@@ -321,9 +321,9 @@ class droneControlScheme(controlScheme):
         cmd_pitch = self.pitch_PI.evaluate_total_error()
 
         #self.plottino.fillListsPlot(self.time, target_pitch, pitch, cmd_pitch,"pitch")
-        print(f"t = {self.time}")
+        #print(f"t = {self.time}")
         self.nframe += 1
-        print(f"n = {self.nframe}")
+        #print(f"n = {self.nframe}")
 
         if roll > 0.35:
             #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
