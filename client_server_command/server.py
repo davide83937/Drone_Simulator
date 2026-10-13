@@ -27,7 +27,7 @@ class MoveRobotServer(Node):
         target_pos = goal_handle.request.target_position
         target_rot = goal_handle.request.target_rotation
 
-        angle_target = target_rot
+        angle_target = math.radians(target_rot)
         z_end = target_pos.z
         z_end = -z_end
 
@@ -63,7 +63,7 @@ class MoveRobotServer(Node):
             distance_rotation = abs((diff_angolo + math.pi) % (2 * math.pi) - math.pi)
 
             # Condizione di uscita
-            if distance <= 5 and distance_rotation < 5:
+            if distance <= 10 and distance_rotation < 10:
                 break
 
             # DEBUG: Stampa a schermo ogni 10 cicli (1 secondo) i valori matematici

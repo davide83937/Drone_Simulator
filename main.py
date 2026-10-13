@@ -31,20 +31,9 @@ from my_math import sensor_math as sm
 from client_server_command import server as s
 from control_scheme import state
 from control_scheme import control_scheme
+from sharedState import current_state
+from geometry_msgs.msg import Vector3
 
-current_state = state.State(
-    tick=0,
-    roll_acc=0.0,
-    pitch_acc=0.0,
-    yaw_magnetometer=0.0,
-    angular_velocity=0.0,
-    pos_x=0.0,
-    pos_y=0.0,
-    pos_z=0.0,
-    vel_x=0.0,
-    vel_y=0.0,
-    vel_z=0.0
-)
 
 
 rclpy.init(args=None)
@@ -94,7 +83,9 @@ dds.subscribe(['yaw'])
 t = Time()
 t.start()
 
-
+state_pub_node = rclpy.create_node('state_publisher')
+pos_publisher = state_pub_node.create_publisher(Vector3, 'drone_position', 10)
+rot_publisher = state_pub_node.create_publisher(Vector3, 'drone_rotation', 10)
 
 try:
     while True:
@@ -147,6 +138,15 @@ try:
         current_state.vel_y = vel_y
         current_state.vel_z = vel_z
 
+        # ---> AGGIUNGI QUESTO BLOCCO QUI (Dopo aver aggiornato current_state) <---
+        pos_msg = Vector3()
+        pos_msg.x = float(pos_x)
+        pos_msg.y = float(pos_y)
+        pos_msg.z = float(pos_z)
+        pos_publisher.publish(pos_msg)
+
+        # ------------------------------------------------------------------------
+
         #print(f"current_state: {current_state.pos_x}, y: {current_state.pos_y}, z: {current_state.pos_z}")
 
         rot_x_deg = math.degrees(rot_x)
@@ -163,7 +163,12 @@ try:
         #print(f"CHEAT: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
         roll, pitch, yaw = ekf.get_euler_angles()
         #print(f"EKF: Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
-
+        # ---> AGGIUNGI QUESTO BLOCCO QUI PER LA ROTAZIONE <---
+        rot_msg = Vector3()
+        # Mappiamo lo yaw sull'asse Z del Vector3 (convenzione standard ROS per la rotazione orizzontale)
+        rot_msg.z = float(yaw)
+        rot_publisher.publish(rot_msg)
+        # ------------------------------------------------------
 
         #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
 

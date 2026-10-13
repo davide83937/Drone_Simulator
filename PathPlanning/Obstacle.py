@@ -53,7 +53,7 @@ class PathPlanner:
                         neighbors.append(((nx, ny, nz), cost))
         return neighbors
 
-    def dijkstra(self, start, goal):
+    def dijkstra(self, start, goal, initial_yaw=0.0):
         start = (self._round_to_grid(start[0]), self._round_to_grid(start[1]), self._round_to_grid(start[2]))
         goal = (self._round_to_grid(goal[0]), self._round_to_grid(goal[1]), self._round_to_grid(goal[2]))
 
@@ -65,15 +65,17 @@ class PathPlanner:
         distances = {start: 0.0}
         came_from = {start: None}
 
+        raw_positions = []
         while queue:
             current_dist, current_node = heapq.heappop(queue)
 
             if current_node == goal:
-                path = []
-                while current_node is not None:
-                    path.append(current_node)
-                    current_node = came_from[current_node]
-                return path[::-1]
+                curr = current_node
+                while curr is not None:
+                    raw_positions.append(curr)
+                    curr = came_from[curr]
+                raw_positions.reverse()
+                break
 
             for next_node, weight in self.get_neighbors(*current_node):
                 new_dist = current_dist + weight
@@ -82,4 +84,34 @@ class PathPlanner:
                     came_from[next_node] = current_node
                     heapq.heappush(queue, (new_dist, next_node))
 
-        return []
+        if not raw_positions:
+            return []
+
+        # =====================================================================
+        # DISACCOPPIAMENTO: SEPARAZIONE ROTAZIONE E TRASLAZIONE
+        # =====================================================================
+        decoupled_path = []
+        current_yaw = initial_yaw
+
+        for i in range(len(raw_positions) - 1):
+            curr_pos = raw_positions[i]
+            next_pos = raw_positions[i + 1]
+
+            dx = next_pos[0] - curr_pos[0]
+            dz = -(next_pos[2] - curr_pos[2])
+
+            # Se c'è spostamento sul piano XZ, calcoliamo l'orientamento
+            if abs(dx) > 0.01 or abs(dz) > 0.01:
+                desired_yaw = math.atan2(dx, dz)
+
+                # 1. COMANDO ROTAZIONE PURA SUL POSTO
+                # Se l'angolo varia (differenza > 1 grado), ferma la posizione e ruota solo lo yaw
+                if abs(desired_yaw - current_yaw) > math.radians(1.0):
+                    decoupled_path.append((curr_pos[0], curr_pos[1], curr_pos[2], desired_yaw))
+                    current_yaw = desired_yaw
+
+            # 2. COMANDO TRASLAZIONE PURA
+            # Avanza alla posizione successiva mantenendo l'angolo già allineato
+            decoupled_path.append((next_pos[0], next_pos[1], next_pos[2], current_yaw))
+
+        return decoupled_path

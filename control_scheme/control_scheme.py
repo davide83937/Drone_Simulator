@@ -36,12 +36,12 @@ class droneControlScheme(controlScheme):
         self.node = PublisherNode()
         #self.plottino = plotManager(30)
         # --- CONTROLLORI ALTITUDINE (Asse Y in Godot) ---
-        self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(10, 2, 2)
+        self.virtualRobotAltitude = VirtualRobot.StraightLine2DMotion(10, 2, 10)
         self.p_controller_altitude = pid.PID(0.28, 0, 0.15, 50)
         self.pi_controller_speed_altitude = pid.PID(3.5, 5.0, 0.5, 30)
 
         # --- CONTROLLORI PIANO ORIZZONTALE (Assi X e Z) ---
-        self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(20, 2, 2)
+        self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(10, 5, 5)
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
         self.p_controller_x = pid.PID(0.44, 0, 0, 0)
@@ -184,13 +184,14 @@ class droneControlScheme(controlScheme):
         self.p_controller_z.evaluate_error_kp()
         #print(f"pz: {self.p_controller_z.pid_p_result}")
         self.p_controller_z.saturation_p(-20.0, 20.0)
+        #print(f"pz: {self.p_controller_z.pid_p_result}")
         #self.p_controller_z.evaluate_error_kd(state.tick)
         error_p_z = self.p_controller_z.evaluate_total_error()
 
         self.pi_controller_speed_z.evaluate_error(error_p_z, -state.vel_y)
         self.pi_controller_speed_z.evaluate_error_kp()
         self.pi_controller_speed_z.saturation_p(-20.0, 20.0)
-        print(f"vzp: {self.pi_controller_speed_z.pid_p_result}")
+        #print(f"vzp: {self.pi_controller_speed_z.pid_p_result}")
         self.pi_controller_speed_z.evaluate_error_ki(state.tick)
         self.pi_controller_speed_z.saturation_i(-0.01, 0.01)
         #print(f"vzi: {self.pi_controller_speed_z.pid_i_result}")
@@ -205,7 +206,7 @@ class droneControlScheme(controlScheme):
 
 
         # 5. CONTROLLO ANGOLARE (YAW)
-        #print(f"angle_magne: {state.yaw_magnetometer}")
+        print(f"angle_magne: {state.yaw_magnetometer}")
         #print(f"angle_target: {angle_target}")
         raw_yaw_error = angle_target - state.yaw_magnetometer
 
@@ -297,7 +298,7 @@ class droneControlScheme(controlScheme):
         #print(f"target pitch: {target_pitch}")
         #print(f"errore pitch: {target_pitch - pitch}")
         self.pitch_P.evaluate_error_kp()
-        self.pitch_P.saturation_p(-30.0, 30.0)
+        self.pitch_P.saturation_p(-15.0, 15.0)
         #cmd_pitch = self.pitch_P.evaluate_total_error()
         error_p_pitch = self.pitch_P.evaluate_total_error()
         #print("error_p_pitch", error_p_pitch)
@@ -305,7 +306,7 @@ class droneControlScheme(controlScheme):
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
-        self.pitch_PI.saturation_p(-15.0, 15.0)
+        self.pitch_PI.saturation_p(-15, 15)
         pp = self.pitch_PI.pid_p_result
         #print("pp", pp)
         self.pitch_PI.evaluate_error_ki(state.tick)
