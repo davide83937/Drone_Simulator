@@ -1,3 +1,4 @@
+import math
 import os
 
 # Registra i percorsi binari contenenti le DLL di ROS 2 e delle interfacce custom
@@ -38,8 +39,7 @@ class MoveAxisClient(Node):
 
         goal_msg = MoveAxis.Goal()
         goal_msg.target_position = Vector3(x=target_x, y=target_y, z=target_z)
-        goal_msg.target_rotation = target_theta
-
+        goal_msg.target_rotation = math.radians(target_theta)
         self.get_logger().info(f'Invio goal: Target({target_x}, {target_y}, {target_z}) a rotazione {target_theta}')
 
         send_goal_future = self._action_client.send_goal_async(

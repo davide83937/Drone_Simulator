@@ -1,6 +1,6 @@
 import os
 
-# Registra i percorsi binari contenenti le DLL di ROS 2 e delle interfacce custom
+# --- 1. CONFIGURAZIONE AMBIENTE ROS 2 (DEVE ESSERE LA PRIMA COSA IN ABSOLUTE) ---
 extra_dll_dirs = [
     r"C:\Users\david\OneDrive\Desktop\ros2-windows\install\custom_interfaces\bin",
     r"C:\Users\david\OneDrive\Desktop\ros2-windows\bin",
@@ -13,17 +13,18 @@ for directory in extra_dll_dirs:
         os.add_dll_directory(directory)
         os.environ["PATH"] = directory + os.pathsep + os.environ.get("PATH", "")
 
-# Assicura la variabile AMENT_PREFIX_PATH per la localizzazione delle risorse
 prefix_path = (
     r"C:\Users\david\OneDrive\Desktop\ros2-windows\install\custom_interfaces;"
     r"C:\Users\david\OneDrive\Desktop\ros2-windows"
 )
-os.environ.setdefault("AMENT_PREFIX_PATH", prefix_path)
+os.environ["AMENT_PREFIX_PATH"] = prefix_path  # Usa os.environ invece di setdefault per forzarlo
+# -----------------------------------------------------------------------------
 
-
+# --- 2. ORA PUOI IMPORTARE TUTTI GLI ALTRI MODULI ---
 import math
 import threading
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from control_lib import SensorFusion
 from lib.dds import dds as DDS
 from lib.utils.time import *
@@ -35,16 +36,20 @@ from sharedState import current_state
 from geometry_msgs.msg import Vector3
 
 
-
 rclpy.init(args=None)
 drone_control_scheme = control_scheme.droneControlScheme()
 server = s.MoveRobotServer(current_state, drone_control_scheme)
-spin_thread = threading.Thread(target=rclpy.spin, args=(server,), daemon=True)
+
+# --- 3. EXECUTOR MULTITHREAD ---
+executor = MultiThreadedExecutor()
+executor.add_node(server)
+
+spin_thread = threading.Thread(target=executor.spin, daemon=True)
 spin_thread.start()
+
 dds = DDS.DDS()
 dds.start('127.0.0.1', 4445)
 ekf = SensorFusion.DroneEKF()
-
 
 angle_target = math.radians(0)
 

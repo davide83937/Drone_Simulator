@@ -41,7 +41,7 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_altitude = pid.PID(3.5, 5.0, 0.5, 30)
 
         # --- CONTROLLORI PIANO ORIZZONTALE (Assi X e Z) ---
-        self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(10, 5, 5)
+        self.virtualRobotXY = VirtualRobot.StraightLine2DMotion(30, 15, 15)
 
         # Posizione e Velocità lungo X (Genera il Roll Target)
         self.p_controller_x = pid.PID(0.44, 0, 0, 0)
@@ -52,19 +52,19 @@ class droneControlScheme(controlScheme):
         self.pi_controller_speed_z = pid.PID(0.8, 0.01, 1.55, 0)
 
         # --- CONTROLLORI ANGOLARI E ROTAZIONE (Yaw Target) ---
-        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(5, 2, 2, 0)
+        self.virtualRobotAngular = VirtualRobot.StraightLineMotion(100, 55, 20, 0)
         self.p_controller_angular = pid.PID(1.8, 0, 5.3, 0)
 
 
         # --- INNER LOOP: ASSETTO E RATEI ANGOLARI ----------------------------------------------------------------
 
-        self.yaw_PI = pid.PID(0.3, 0.0, 1.0, 0)
+        self.yaw_PI = pid.PID(7.3, 0.0, 1.0, 0)
 
         self.roll_P = pid.PID(1.5, 0, 0, 0)
-        self.roll_PI = pid.PID(1.5, 0.3, 0.8, 0)
+        self.roll_PI = pid.PID(2.5, 0.3, 0.8, 0)
 
         self.pitch_P = pid.PID(1.5, 0, 0, 0)
-        self.pitch_PI = pid.PID(1.1, 0.3, 0.8, 0)
+        self.pitch_PI = pid.PID(1.1, 0.3, 1.0, 0)
 
 
 #---------------------------------------------------------------------------------------------------------
@@ -185,7 +185,7 @@ class droneControlScheme(controlScheme):
         #print(f"pz: {self.p_controller_z.pid_p_result}")
         self.p_controller_z.saturation_p(-20.0, 20.0)
         #print(f"pz: {self.p_controller_z.pid_p_result}")
-        #self.p_controller_z.evaluate_error_kd(state.tick)
+        self.p_controller_z.evaluate_error_kd(state.tick)
         error_p_z = self.p_controller_z.evaluate_total_error()
 
         self.pi_controller_speed_z.evaluate_error(error_p_z, -state.vel_y)
@@ -206,7 +206,7 @@ class droneControlScheme(controlScheme):
 
 
         # 5. CONTROLLO ANGOLARE (YAW)
-        print(f"angle_magne: {state.yaw_magnetometer}")
+        #print(f"angle_magne: {state.yaw_magnetometer}")
         #print(f"angle_target: {angle_target}")
         raw_yaw_error = angle_target - state.yaw_magnetometer
 
@@ -253,15 +253,15 @@ class droneControlScheme(controlScheme):
 
         self.yaw_PI.evaluate_error(target_yaw_rate, speed_yaw)
         self.yaw_PI.evaluate_error_kp()
-        self.yaw_PI.saturation_p(-15.0, 15.0)
+        self.yaw_PI.saturation_p(-50.0, 50.0)
         #print(f"yp: {self.yaw_PI.pid_p_result}")
-        #self.yaw_PI.evaluate_error_ki(state.tick)
-        #self.yaw_PI.saturation_i(-1.1, 1.0)
+        self.yaw_PI.evaluate_error_ki(state.tick)
+        self.yaw_PI.saturation_i(-50, 50)
         self.yaw_PI.evaluate_error_kd(state.tick)
-        self.yaw_PI.saturation_d(-10.0, 10.0)
+        self.yaw_PI.saturation_d(-50.0, 50.0)
         #print(f"yd: {self.yaw_PI.pid_d_result}")
         cmd_yaw = self.yaw_PI.evaluate_total_error()
-        MAX_YAW_CMD = 25.0
+        MAX_YAW_CMD = 100.0
         cmd_yaw = max(min(cmd_yaw, MAX_YAW_CMD), -MAX_YAW_CMD)
 
         #self.plottino.fillListsPlot(self.time, target_yaw_rate, speed_yaw, cmd_yaw, "yaw")
@@ -298,27 +298,27 @@ class droneControlScheme(controlScheme):
         #print(f"target pitch: {target_pitch}")
         #print(f"errore pitch: {target_pitch - pitch}")
         self.pitch_P.evaluate_error_kp()
-        self.pitch_P.saturation_p(-15.0, 15.0)
-        #cmd_pitch = self.pitch_P.evaluate_total_error()
+        self.pitch_P.saturation_p(-30.0, 30.0)
+        cmd_pitch = self.pitch_P.evaluate_total_error()
         error_p_pitch = self.pitch_P.evaluate_total_error()
-        #print("error_p_pitch", error_p_pitch)
+        print("error_p_pitch", error_p_pitch)
 
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
-        self.pitch_PI.saturation_p(-15, 15)
+        self.pitch_PI.saturation_p(-25, 25)
         pp = self.pitch_PI.pid_p_result
-        #print("pp", pp)
+        print("pp", pp)
         self.pitch_PI.evaluate_error_ki(state.tick)
-        self.pitch_PI.saturation_i(-10.0, 10.0)
+        self.pitch_PI.saturation_i(-30.0, 30.0)
         #-----------------------------------------------------
         #print("error_i_pitch: ", self.pitch_PI.pid_i_result)#
         #-----------------------------------------------------
         #self.pitch_PI.saturation_d(-1.0, 1.0)
         self.pitch_PI.evaluate_error_kd(state.tick)
-        self.pitch_PI.saturation_d(-5, 5)
+        self.pitch_PI.saturation_d(-20, 20)
         pd = self.pitch_PI.pid_d_result
-        #print("pd", pd)
+        print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
 
         #self.plottino.fillListsPlot(self.time, target_pitch, pitch, cmd_pitch,"pitch")
