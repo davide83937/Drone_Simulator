@@ -316,7 +316,7 @@ class droneControlScheme(controlScheme):
         #-----------------------------------------------------
         #self.pitch_PI.saturation_d(-1.0, 1.0)
         self.pitch_PI.evaluate_error_kd(state.tick)
-        self.pitch_PI.saturation_d(-20, 20)
+        self.pitch_PI.saturation_d(-30, 30)
         pd = self.pitch_PI.pid_d_result
         print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()

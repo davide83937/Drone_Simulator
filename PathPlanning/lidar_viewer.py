@@ -4,6 +4,7 @@ import numpy as np
 import time
 import json
 from std_msgs.msg import String
+from obstacle_config import ObstacleConfig
 
 from PathPlanning.lidar_graphics import (
     start_window,
@@ -74,7 +75,7 @@ class DroneStateSubscriber(Node):
 # --- CONFIGURAZIONE LIDAR UDP ---
 UDP_IP = "127.0.0.1"
 UDP_PORT = 9999
-MAX_POINTS = 30000
+MAX_POINTS = ObstacleConfig.get_max_accumulated_points()
 
 
 def main():
@@ -134,15 +135,20 @@ def main():
             pass
 
         # --- LOGICA DI FILTRAGGIO OSTACOLI ---
-        if current_time - last_cluster_time >= 0.3 and len(np.asarray(pcd.points)) > 50:
+        if (current_time - last_cluster_time >= ObstacleConfig.get_clustering_interval_sec() and
+                len(np.asarray(pcd.points)) > ObstacleConfig.get_min_total_points_to_process()):
             last_cluster_time = current_time
 
             # GRAFICA ---------------------------------------------------------------------
             clear_points(current_bboxes, vis)
             # -----------------------------------------------------------------------------
 
-            downpcd = pcd.voxel_down_sample(voxel_size=0.5)
-            labels = np.array(downpcd.cluster_dbscan(eps=4.5, min_points=45, print_progress=False))
+            downpcd = pcd.voxel_down_sample(voxel_size=ObstacleConfig.get_voxel_size())
+            labels = np.array(downpcd.cluster_dbscan(
+                eps=ObstacleConfig.get_dbscan_eps(),
+                min_points=ObstacleConfig.get_dbscan_min_points(),
+                print_progress=False
+            ))
 
             if len(labels) > 0:
                 max_label = labels.max()
@@ -155,14 +161,18 @@ def main():
                     if lidar.is_obstacle_inside(c_x, c_y, c_z):
                         aabb.color = (0, 0, 1)
                     else:
-                        matched_tracker, min_dist = lidar.is_obstacles_mobile(c_x, c_y, c_z, min_dist=4.0)
+                        matched_tracker, min_dist = lidar.is_obstacles_mobile(
+                            c_x, c_y, c_z,
+                            min_dist=ObstacleConfig.get_tracking_max_match_distance()
+                        )
 
                         if matched_tracker:
                             matched_tracker['last_seen'] = current_time
-                            if min_dist > 2.5:
+                            if min_dist > ObstacleConfig.get_movement_threshold_distance():
                                 lidar.detect_movement(matched_tracker, current_time, aabb, c_x, c_y, c_z, d_x, d_y, d_z)
                             else:
-                                promoted_obs_data = lidar.new_fixed_obstacle_detected(current_time, matched_tracker, aabb)
+                                promoted_obs_data = lidar.new_fixed_obstacle_detected(current_time, matched_tracker,
+                                                                                      aabb)
                                 if promoted_obs_data is not None:
                                     state_node.publish_static_obstacle(promoted_obs_data)
                         else:

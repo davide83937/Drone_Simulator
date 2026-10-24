@@ -97,7 +97,7 @@ class MoveRobotServer(Node):
                 if distance_rotation <= 5.0:  # 5 gradi reali di tolleranza
                     break
             else:
-                if distance <= 20.0 and distance_rotation <= 5.0:
+                if distance <= 10.0 and distance_rotation <= 5.0:
                     break
 
             feedback_msg.current_position = Vector3(

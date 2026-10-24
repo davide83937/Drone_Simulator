@@ -2,7 +2,16 @@ import os
 import math
 import json
 from std_msgs.msg import String
-from sharedState import current_state
+from PathPlanning.getObstacles import get_obstacles_path_manager
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.node import Node
+
+from PathPlanning.obstacle_config import ObstacleConfig
+from custom_interfaces.action import MoveAxis
+from geometry_msgs.msg import Vector3
+from Obstacle import PathPlanner, ObstacleAABB
+
 
 # --- SETTINGS AMBIENTE WINDOWS ROS 2 ---
 extra_dll_dirs = [
@@ -23,16 +32,6 @@ prefix_path = (
 )
 os.environ.setdefault("AMENT_PREFIX_PATH", prefix_path)
 # ----------------------------------------
-
-import rclpy
-from rclpy.action import ActionClient
-from rclpy.node import Node
-from custom_interfaces.action import MoveAxis
-from geometry_msgs.msg import Vector3
-
-# IMPORTA LA LOGICA DAL TUO PRIMO FILE
-# (Sostituisci "path_planner" col nome effettivo del file 1)
-from Obstacle import PathPlanner, ObstacleAABB
 
 
 class AutonomousDroneClient(Node):
@@ -80,102 +79,117 @@ class AutonomousDroneClient(Node):
         """Mantiene self.drone_yaw sempre aggiornato in radianti"""
         self.drone_yaw = math.radians(msg.z)
 
-    def obstacle_callback(self, msg):
-        """Riceve un nuovo ostacolo fisso dal LiDAR e valuta se è sulla rotta"""
-        if (
-            self.is_replanning
-            or not self.path
-            or self.current_wp_index >= len(self.path)
-        ):
-            return
+    def _register_new_obstacle(self, json_str):
+        """1. Converte il JSON, crea l'ostacolo AABB, lo aggiunge al planner e stampa i log."""
+        data = json.loads(json_str)
 
-        data = json.loads(msg.data)
-
-        # Allineamento agli assi di Dijkstra: (X, Altezza, Profondità)
         new_obs = ObstacleAABB(
             x=data['x'],
-            y=data['z'],  # Altezza dal suolo
-            z=data['y'],  # Profondità
+            y=data['z'],
+            z=data['y'],
             width=data['w'],
-            depth=data['h'],  # Dimensione altezza sull'asse Y
-            height=data['d'],  # Dimensione profondità sull'asse Z
-            drone_radius=7.0,
+            depth=data['h'],
+            height=data['d'],
+            drone_radius=ObstacleConfig.get_drone_safety_radius(),
         )
         self.planner.obstacles.append(new_obs)
 
-        self.get_logger().info(f'\n--- VALUTAZIONE NUOVO OSTACOLO ---')
         self.get_logger().info(
-            f'Posizione attuale drone: X:{self.drone_pos[0]:.1f}, Y(Alt):{self.drone_pos[1]:.1f}, Z(Prof):{self.drone_pos[2]:.1f}'
+            f'\n--- VALUTAZIONE NUOVO OSTACOLO ---\n'
+            f'Posizione attuale drone: X:{self.drone_pos[0]:.1f}, Y(Alt):{self.drone_pos[1]:.1f}, Z(Prof):{self.drone_pos[2]:.1f}\n'
+            f'Limiti X (Orizzontale): [{new_obs.min_x:.1f} -> {new_obs.max_x:.1f}]\n'
+            f'Limiti Y (Altezza)    : [{new_obs.min_y:.1f} -> {new_obs.max_y:.1f}]\n'
+            f'Limiti Z (Profondità) : [{new_obs.min_z:.1f} -> {new_obs.max_z:.1f}]'
         )
-        self.get_logger().info(
-            f'Limiti X (Orizzontale): [{new_obs.min_x:.1f}  ->  {new_obs.max_x:.1f}]'
-        )
-        self.get_logger().info(
-            f'Limiti Y (Altezza)    : [{new_obs.min_y:.1f}  ->  {new_obs.max_y:.1f}]'
-        )
-        self.get_logger().info(
-            f'Limiti Z (Profondità) : [{new_obs.min_z:.1f}  ->  {new_obs.max_z:.1f}]'
-        )
+        return new_obs
 
-        # Catena completa della rotta futura:
-        # Parte DALLA POSIZIONE ATTUALE DEL DRONE -> fino a self.path[current_wp_index] -> fino a fine percorso
+    def _find_route_collision(self):
+        """2. Controlla la rotta futura. Restituisce il punto di impatto o None se la via è libera."""
         route_points = [self.drone_pos] + [
-            (wp[0], wp[1], wp[2]) for wp in self.path[self.current_wp_index :]
+            (wp[0], wp[1], wp[2]) for wp in self.path[self.current_wp_index:]
         ]
 
-        collision = False
-        wp_intersecato = None
+        for i, p_curr in enumerate(route_points):
+            # Controlla il vertice esatto
+            if not self.planner.is_valid(*p_curr):
+                return p_curr
 
-        for i in range(len(route_points)):
-            p_curr = route_points[i]
-
-            # 1. Controlla se il vertice cade dentro l'ostacolo
-            if new_obs.is_inside(p_curr[0], p_curr[1], p_curr[2]):
-                collision = True
-                wp_intersecato = p_curr
-                break
-
-            # 2. Controlla il segmento tra p_curr e il punto successivo (passo di 1.0 metro)
+            # Controlla il segmento verso il punto successivo
             if i < len(route_points) - 1:
                 p_next = route_points[i + 1]
-                seg_len = math.sqrt(
-                    (p_next[0] - p_curr[0]) ** 2
-                    + (p_next[1] - p_curr[1]) ** 2
-                    + (p_next[2] - p_curr[2]) ** 2
-                )
-                num_steps = max(5, int(seg_len / 1.0))
+                if not self.planner.is_segment_valid(*p_curr, *p_next):
+                    return p_curr
 
-                for step in range(1, num_steps):
-                    t = step / float(num_steps)
-                    mx = p_curr[0] + t * (p_next[0] - p_curr[0])
-                    my = p_curr[1] + t * (p_next[1] - p_curr[1])
-                    mz = p_curr[2] + t * (p_next[2] - p_curr[2])
-                    if new_obs.is_inside(mx, my, mz):
-                        collision = True
-                        wp_intersecato = (mx, my, mz)
-                        break
-                if collision:
-                    break
+        return None
 
-        if collision:
-            self.blocking_obs_pub.publish(msg)
-            self.get_logger().warning(
-                f'💥 COLLISIONE PREVISTA sul punto (X:{wp_intersecato[0]:.1f}, Y:{wp_intersecato[1]:.1f}, Z:{wp_intersecato[2]:.1f})!'
-            )
-            self.get_logger().warning("⚠️ Frenata d'emergenza in corso...")
-            self.is_replanning = True
+    def _trigger_emergency_stop(self, msg, wp_intersecato):
+        """3. Gestisce l'allarme grafico e blocca immediatamente il movimento in corso."""
+        self.blocking_obs_pub.publish(msg)
+        self.get_logger().warning(
+            f'💥 COLLISIONE PREVISTA sul punto (X:{wp_intersecato[0]:.1f}, Y:{wp_intersecato[1]:.1f}, Z:{wp_intersecato[2]:.1f})!'
+        )
+        self.get_logger().warning("⚠️ Frenata d'emergenza in corso...")
+        self.is_replanning = True
 
-            if self.current_goal_handle:
-                cancel_future = self.current_goal_handle.cancel_goal_async()
-                cancel_future.add_done_callback(self.cancel_done_callback)
-            else:
-                self.execute_replan()
+        if self.current_goal_handle:
+            cancel_future = self.current_goal_handle.cancel_goal_async()
+            cancel_future.add_done_callback(self.cancel_done_callback)
+        else:
+            self.execute_backup()
+
+    def obstacle_callback(self, msg):
+        """Regista principale: coordina registrazione, verifica e reazione."""
+        if self.is_replanning or not self.path or self.current_wp_index >= len(self.path):
+            return
+
+        # 1. Registra l'ostacolo nella mappa
+        self._register_new_obstacle(msg.data)
+
+        # 2. Controlla se intralcia la rotta rimanente
+        wp_intersecato = self._find_route_collision()
+
+        # 3. Agisce di conseguenza
+        if wp_intersecato is not None:
+            self._trigger_emergency_stop(msg, wp_intersecato)
         else:
             self.get_logger().info(
                 "✅ L'ostacolo è stato aggiunto alla mappa, ma NON tocca la rotta futura. Il drone continua la missione.\n"
             )
+
     def cancel_done_callback(self, future):
-        self.get_logger().info('Drone fermato con successo. Procedo al ricalcolo...')
+        """Si attiva appena il server conferma che i motori sono fermi."""
+        self.get_logger().info('🛑 Drone fermato con successo. Eseguo retromarcia di sicurezza...')
+        self.execute_backup()
+
+    def execute_backup(self):
+        """Manda il drone all'indietro rispetto al suo muso PRIMA di calcolare Dijkstra."""
+        distanza_ritirata = ObstacleConfig.get_emergency_backup_distance()  # Metri di retromarcia
+
+        back_x = self.drone_pos[0] #- math.sin(self.drone_yaw) * distanza_ritirata
+        back_z = self.drone_pos[2] #+ math.cos(self.drone_yaw) * distanza_ritirata
+        back_y = self.drone_pos[1]  # Mantiene la quota
+
+        goal_msg = MoveAxis.Goal()
+        goal_msg.target_position = Vector3(x=float(back_x), y=float(back_y), z=float(back_z))
+        goal_msg.target_rotation = float(self.drone_yaw)
+
+        self.get_logger().info(f'🔄 Retromarcia di {distanza_ritirata}m verso X:{back_x:.1f}, Z:{back_z:.1f}...')
+        send_goal_future = self._action_client.send_goal_async(goal_msg)
+        send_goal_future.add_done_callback(self.backup_response_callback)
+
+    def backup_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('Retromarcia rifiutata dal server! Ricalcolo dalla posizione attuale.')
+            self.execute_replan()
+            return
+
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self.backup_result_callback)
+
+    def backup_result_callback(self, future):
+        """Si attiva al termine della retromarcia per far partire Dijkstra in sicurezza."""
+        self.get_logger().info("✅ Retromarcia completata. Procedo con il ricalcolo del percorso...")
         self.execute_replan()
 
     def execute_replan(self):
@@ -286,74 +300,46 @@ def get_real_start_pos():
 
 def main(args=None):
     rclpy.init(args=args)
-    width = 20
     # 1. SETUP DEGLI OSTACOLI STATICI
-    obstacles = [
-        #Dritto   1
-        ObstacleAABB(x=-46, y=20.0, z=-75.0, width=width, depth=60, height=200, drone_radius=5.0),
-        #Rovesciato    2
-        ObstacleAABB(x=-126.0, y=20.0, z=-173.0, width=200, depth=60.0, height=width, drone_radius=5.0),
-        #Dritto    3
-        ObstacleAABB(x=45.0, y=20.0, z=-75.0, width=width, depth=60.0, height=200, drone_radius=5.0),
-        #Rovesciato    4
-        ObstacleAABB(x=-68.0, y=20.0, z=-233.0, width=200, depth=60.0, height=width, drone_radius=5.0),
-        #Dritto    5
-        ObstacleAABB(x=-243.0, y=20.0, z=-269.0, width=width, depth=60.0, height=200.0, drone_radius=5.0),
-        #Rovesciato    6
-        ObstacleAABB(x=-151.0, y=20.0, z=-390.0, width=200, depth=60.0, height=width, drone_radius=5.0),
-        #Rovesciato 7
-        ObstacleAABB(x=-73.0, y=20.0, z=-315.0, width=200, depth=60.0, height=width, drone_radius=5.0),
-        #Dritto  8
-        ObstacleAABB(x=-161.0, y=20.0, z=-270.0, width=width, depth=60.0, height=60.0, drone_radius=5.0),
-        #Rovesciato   9
-        ObstacleAABB(x=84.0, y=20.0, z=-160.0, width=60.0, depth=60.0, height=width, drone_radius=5.0),
-        #Dritto    10
-        ObstacleAABB(x=104.0, y=20.0, z=-202.0, width=width, depth=60.0, height=60.0, drone_radius=5.0),
-        #Rovesciato    11
-        ObstacleAABB(x=63.0, y=20.0, z=-239.0, width=60.0, depth=60.0, height=width, drone_radius=5.0),
-        # Dritto   12
-        ObstacleAABB(x=-48.0, y=20.0, z=-427.0, width=width, depth=60.0, height=60.0, drone_radius=5.0),
-        # Rovesciato    13
-        ObstacleAABB(x=-9.0, y=20.0, z=-458.0, width=60.0, depth=60.0, height=width, drone_radius=5.0),
-        # Rovesciato    14
-        ObstacleAABB(x=60, y=20.0, z=-458.0, width=60.0, depth=60.0, height=width, drone_radius=5.0),
-        # Dritto    15
-        ObstacleAABB(x=104.0, y=20.0, z=-427.0, width=width, depth=60.0, height=60.0, drone_radius=5.0),
-        # Dritto     16
-        ObstacleAABB(x=104.0, y=20.0, z=-356.0, width=width, depth=60.0, height=60.0, drone_radius=5.0),
-        # Rovesciato    17
-        ObstacleAABB(x=67.0, y=20.0, z=-315.0, width=60.0, depth=60.0, height=width, drone_radius=5.0),
-
-
-    ]
+    obstacles = get_obstacles_path_manager()
 
     bounds = {
-        'x': (-10000.0, 10000.0),
+        'x': (-800.0, 800.0),
         'y': (0.0, 45.0),
-        'z': (-10000.0, 10000.0)
+        'z': (-800.0, 800.0)
     }
 
     planner = PathPlanner(bounds=bounds, resolution=15, obstacles=obstacles)
 
     # 2. CATTURA LA POSIZIONE REALE VIA ROS 2
+    # 2. CATTURA LA POSIZIONE REALE VIA ROS 2
     start_pos = get_real_start_pos()
     print(f"Posizione reale del drone acquisita: {start_pos}")
 
-    goal_pos = (26, 15.0, -404)
-    #goal_pos = (0.0, 0.0, 0.0)
+    # --- SETUP QUOTA DI VOLO ---
+    quota_volo = 15.0
+    # Creiamo un punto fittizio per far credere a Dijkstra che siamo già in aria
+    pos_in_aria = (start_pos[0], quota_volo, start_pos[2])
 
-    # 3. CALCOLO DIJKSTRA
-    print(f"Calcolo percorso con Dijkstra da {start_pos} a {goal_pos}...")
-    path = planner.dijkstra(start_pos, goal_pos, initial_yaw=0.0)
+    goal_pos = (26.0, quota_volo, -404.0)
+
+    # 3. CALCOLO DIJKSTRA (Calcola il percorso partendo già dalla quota di 15.0)
+    print(f"Calcolo percorso con Dijkstra da {pos_in_aria} a {goal_pos}...")
+    path = planner.dijkstra(pos_in_aria, goal_pos, initial_yaw=0.0)
 
     if not path:
         print("ERRORE: Nessun percorso valido trovato.")
         return
 
-    print(f"Percorso trovato! Composto da {len(path)} waypoint.")
+    # --- INIEZIONE DECOLLO MANUALE ---
+    # Inseriamo come primissimo comando (indice 0) la salita verticale in stile ascensore.
+    # Il drone manterrà le sue X e Z attuali, ma salirà a Y = 15.0 con angolo 0.0
+    wp_decollo = (start_pos[0], quota_volo, start_pos[2], 0.0)
+    path.insert(0, wp_decollo)
+
+    print(f"Percorso trovato! Composto da {len(path)} waypoint (incluso decollo verticale).")
 
     # 4. AVVIO DEL CLIENT
-    # 4. AVVIO DEL CLIENT (passiamo anche planner e goal_pos)
     client = AutonomousDroneClient(planner, goal_pos, path, start_pos=start_pos, start_yaw=0.0)
     client.start_mission()
 
