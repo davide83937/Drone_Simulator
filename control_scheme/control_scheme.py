@@ -301,16 +301,16 @@ class droneControlScheme(controlScheme):
         self.pitch_P.saturation_p(-30.0, 30.0)
         cmd_pitch = self.pitch_P.evaluate_total_error()
         error_p_pitch = self.pitch_P.evaluate_total_error()
-        print("error_p_pitch", error_p_pitch)
+        #print("error_p_pitch", error_p_pitch)
 
         # 2. Controllo della velocità angolare di Pitch
         self.pitch_PI.evaluate_error(error_p_pitch, speed_pitch)
         self.pitch_PI.evaluate_error_kp()
         self.pitch_PI.saturation_p(-25, 25)
         pp = self.pitch_PI.pid_p_result
-        print("pp", pp)
+        #print("pp", pp)
         self.pitch_PI.evaluate_error_ki(state.tick)
-        self.pitch_PI.saturation_i(-30.0, 30.0)
+        self.pitch_PI.saturation_i(-50.0, 50.0)
         #-----------------------------------------------------
         #print("error_i_pitch: ", self.pitch_PI.pid_i_result)#
         #-----------------------------------------------------
@@ -318,7 +318,7 @@ class droneControlScheme(controlScheme):
         self.pitch_PI.evaluate_error_kd(state.tick)
         self.pitch_PI.saturation_d(-30, 30)
         pd = self.pitch_PI.pid_d_result
-        print("pd", pd)
+        #print("pd", pd)
         cmd_pitch = self.pitch_PI.evaluate_total_error()
 
         #self.plottino.fillListsPlot(self.time, target_pitch, pitch, cmd_pitch,"pitch")

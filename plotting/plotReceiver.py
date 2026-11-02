@@ -11,7 +11,7 @@ class ReceiverSubscriber(Node):
         super().__init__('_plot_receiver')
         self.log_sub = self.create_subscription(String, '/ttacm', self.ricevi, 10)
         self.last_msg = None
-        self.plotManager = plotManager(time_end=25)
+        self.plotManager = plotManager(time_end=100)
 
 
     def ricevi(self, msg):

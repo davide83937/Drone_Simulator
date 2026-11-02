@@ -117,7 +117,7 @@ def find_cross_inside_box(image, box_contour):
     return False, None
 
 
-def check_centering(cx, cy, frame_w, frame_h, tolerance=25):
+def check_centering(cx, cy, frame_w, frame_h, tolerance=60):
     """Calcola la distanza dal mirino e valida se il bersaglio è al centro."""
     center_screen_x = frame_w // 2
     center_screen_y = frame_h // 2
