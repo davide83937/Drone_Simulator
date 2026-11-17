@@ -9,7 +9,7 @@ extends Node3D # Oppure il tipo di nodo padre che stai usando
 @export var thrust_coefficient: float = 0.1
 var rot_torque: Vector3 = Vector3(0, 0, 25.0)
 var rot_torque1: Vector3 = Vector3(0, 0, -25.0)
-
+var tempo= 0
 
 var i:int = 0
 func _ready() -> void:
@@ -18,6 +18,7 @@ func _ready() -> void:
 	DDS.subscribe("w3")
 	DDS.subscribe("w4")
 	DDS.subscribe("n")
+	#body.rotate_z(90)
 	
 
 
@@ -28,19 +29,12 @@ func prop(prop, rot_torque, n):
 		#print("torque: ",torque)
 		prop.apply_torque(torque)
 		#print("torque: ", torque)
-		
-		
+
 		# 2. Leggi gli RPM fisici
 		var angular_velocity_vector: Vector3 = prop.angular_velocity
 		var omega: float = angular_velocity_vector.y
+
 		
-		# 2. Leggi gli RPM fisici (DEVE ESSERE L'ASSE Z LOCALE, NON LA Y GLOBALE!)
-		#var local_angular_vel = prop.global_transform.basis.inverse() * prop.angular_velocity
-		#var omega: float = local_angular_vel.z
-		
-		# --- AGGIUNTA FONDAMENTALE: ATTRITO AERODINAMICO ---
-		# Simula la resistenza dell'aria. Regola "0.01" in base alla massa della tua elica.
-		# Questo frenerà l'elica quando rot_torque diventa 0.
 		var drag_coefficient = 0.05
 		#var drag_torque = -sign(omega) * drag_coefficient * abs(omega)
 		var v = Vector3(0.0, 0.0, -sign(omega) * prop.angular_velocity.length())
@@ -48,43 +42,34 @@ func prop(prop, rot_torque, n):
 		var contro_torque = (prop.global_transform.basis*v)*drag_coefficient
 		#print("contro_torque: ",contro_torque)
 		prop.apply_torque(contro_torque)
-		
+
 		var rpm: float = omega * (60.0 / TAU)
-	
-		# 3. SPINTA FISICA PURA
-		# Essendo calcolata con pow(rpm, 2), è indipendente dal segno di rotazione
-		# (risolve automaticamente il problema delle eliche che girano in senso orario/antiorario)
+		
 		#print(n, ": ", rpm)
 		var vertical_force = 0.1 * abs(rpm)
 		#print(n, ": ", rpm, " - ",vertical_force)
-		var local_thrust = prop.global_transform.basis * Vector3(0.0, 0.0, vertical_force)
-
-		prop.apply_force(local_thrust)
+		#prop.apply_force(Vector3(0.0, vertical_force, 0.0))
+		var local_thrust = prop.global_transform.basis*Vector3(0.0, 0.0, vertical_force)
 		
-		# Definisci un coefficiente per la resistenza dell'aria (da tarare)
-		var drag_factor = 0.005 
+		prop.apply_force(local_thrust)
+		#var v1 = Vector3(0.0, 0.0, 5)
+		#var r = body.global_transform.basis*v1
+		
 
-		# Calcola il vettore di torsione basato sulla velocità dell'elica lungo il suo asse Y locale
-		#var local_torque = Vector3(0.0, 0.0, drag_factor * abs(rpm))
-		var reaction_torque = body.global_transform.basis.y * (drag_factor * abs(rpm))# * local_torque
-		print("r_torque: ", -local_thrust)
-		# Applica la torsione al corpo centrale del drone.
-		# ATTENZIONE: Le due diagonali devono spingere in versi opposti!
-		# Assumendo che w1/w2 siano una diagonale e w3/w4 l'altra:
-		reaction_torque = body.global_transform.basis*Vector3(0.0, 0.0, 0.1)
+		
+		
+		
 
-		#if n == 1 or n == 2:
-		body.apply_torque(-torque) # Senso antiorario
-			#pass
-		#elif n == 3 or n == 4:
-			#body.apply_torque(-torque)  # Senso orario
-			#pass		
-		# 4. Contro-coppia al corpo per lo Yaw
-		#var t = Vector3(0.0, 0.0, -rot_torque.z)
-		#body.apply_torque(prop.global_transform.basis * t)
+		
 
 func _physics_process(delta: float) -> void:
 	DDS.publish("tick", DDS.DDS_TYPE_FLOAT, delta)
+	#tempo += delta
+	#print("t: ", tempo)
+
+	var p_body = global_transform.basis* body.position
+	print("p_body: ", p_body)
+	
 	# --- INIZIO MODIFICA: Svuota la coda leggendo sempre il valore più recente ---
 	var w1 = DDS.read("w1")
 	var w2 = DDS.read("w2")
@@ -94,7 +79,7 @@ func _physics_process(delta: float) -> void:
 	var n = DDS.read("n")
 
 	if n != null:
-		#n = n+1
+		n = n+1
 		print(n)
 
 	#print(body.position.z)
@@ -115,11 +100,6 @@ func _physics_process(delta: float) -> void:
 	DDS.publish("pitch", DDS.DDS_TYPE_FLOAT, pitch)
 	DDS.publish("yaw", DDS.DDS_TYPE_FLOAT, yaw)
 	
-	var h = body.position.z
-	print("Altezza: ", h)
-	#print("X: ", body.position.x)
-	#print("Y: ", body.position.y)
-	#print("Z: ", body.position.z)
 	print("Roll: ", roll, " Pitch: ",pitch, " Yaw: ",yaw)
 	# Passiamo i comandi originali (w1, w2, w3, w4) per verificare l'intenzione del PID
 	prop(prop1, v1, 1)

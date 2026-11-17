@@ -27,15 +27,26 @@ func apply_local_force(force: Vector3, pos: Vector3):
 	body.apply_force(force_global, pos_global_offset)
 
 func prop(w, n, pos_locale, prop):
+	if prop == null:
+		return
+
 	# 1. Spinta (La tua formula originale degli RPM)
 	var rpm = w * (60.0 / TAU)
 	var vertical_force = 0.1 * abs(rpm)
-	#prop.rotate_z(vertical_force/10)
+	
 	# Usiamo Z per l'altezza, coerentemente con i tuoi script precedenti
 	var force_local = Vector3(0, 0, vertical_force)
-	#prop.apply_torque(force_local)
 	# Applichiamo la spinta sul vertice del nostro quadrato perfetto
 	apply_local_force(force_local, pos_locale)
+	
+	# --- ROTAZIONE VISIVA DELL'ELICA ---
+	# Definiamo il verso di rotazione: coppie opposte (es. 1 e 4 in un senso, 2 e 3 nell'altro)
+	var spin_direction = 1.0 if (n == 1 or n == 4) else -1.0
+	
+	# Velocità visiva proporzionale a w (usiamo get_process_delta_time() per renderla fluida)
+	var visual_speed = w * spin_direction * 15.0 * get_process_delta_time()
+	prop.rotate_object_local(Vector3(0, 0, 1), visual_speed)
+	# -----------------------------------
 	
 	# 2. Contro-coppia Aerodinamica (YAW)
 	var dir = -1.0
@@ -44,8 +55,6 @@ func prop(w, n, pos_locale, prop):
 	var drag_factor = 0.05 
 	
 	var torque_local = Vector3(0, 0, vertical_force * drag_factor * dir)
-	#var torque_local1 = Vector3(0, 0, 1)
-	#print(n, ": ", force_local, ": ", pos_locale)
 	body.apply_torque(body.global_transform.basis * torque_local)
 
 
@@ -60,13 +69,13 @@ func _physics_process(delta: float) -> void:
 	if w1 != 0.0:
 		if n != null:
 			n = n+1
-			print(n)
+			#print(n)
 		
 	# Estrazione angoli originale, semplice e pulita
 	#var roll  = rad_to_deg(body.rotation.y)
 	#var pitch = rad_to_deg(body.rotation.x)
 	var yaw   = rad_to_deg(body.rotation.z) 
-
+	#print("Rotazione: ",yaw)
 	# 1. Otteniamo i vettori fisici direzionali del drone dal mondo globale
 	var local_forward = -body.global_transform.basis.y # Dove punta il muso
 	var local_left = body.global_transform.basis.x     # Dove punta l'ala sinistra
@@ -88,8 +97,8 @@ func _physics_process(delta: float) -> void:
 	var y = body.position.y
 	var z = body.position.z
 	
-	print("x: ", x, " y: ",y, " z: ",z)
-	print("Roll: ", roll, " Pitch: ", pitch, " Yaw: ", yaw)
+	#print("x: ", x, " y: ",y, " z: ",z)
+	#print("Roll: ", roll, " Pitch: ", pitch, " Yaw: ", yaw)
 
 	# --- GEOMETRIA VIRTUALE SIMMETRICA ---
 	# Definiamo le 4 posizioni a forma di quadrato perfetto (sul piano X-Y)
