@@ -36,7 +36,7 @@ class ObstacleConfig:
     # Raggio massimo (in metri) entro cui DBSCAN cerca punti vicini per unirli nello stesso ostacolo.
     # - Aumentalo: unisce punti più distanti (utile se il LiDAR è rado), ma rischia di fondere due ostacoli vicini in uno solo.
     # - Diminuiscilo: separa meglio gli ostacoli vicini, ma rischia di spezzare un singolo ostacolo grande in più pezzi.
-    _DBSCAN_EPS = 4.5
+    _DBSCAN_EPS = 5.5
 
     # Numero minimo di punti (dopo il voxel downsampling) entro il raggio EPS per formare un ostacolo valido.
     # - Aumentalo: elimina i falsi positivi e il rumore, ma potrebbe ignorare ostacoli piccoli o lontani (colpiti da pochi raggi).
@@ -82,10 +82,10 @@ class ObstacleConfig:
 
     # Raggio di sicurezza del drone (in metri) aggiunto attorno ai nuovi ostacoli statici rilevati.
     # Espande il bounding box (AABB) in tutte le direzioni per garantire che il drone passi a distanza di sicurezza.
-    _DRONE_SAFETY_RADIUS = 7.0
+    _DRONE_SAFETY_RADIUS = 10.0
 
     # Raggio di sicurezza di default (in metri) usato dalla classe ObstacleAABB se non specificato diversamente.
-    _DEFAULT_AABB_DRONE_RADIUS = 5.0
+    _DEFAULT_AABB_DRONE_RADIUS = 10.0
 
     # Risoluzione dei controlli lungo i segmenti della rotta (1 controllo ogni X metri) e numero minimo di step.
     _SEGMENT_CHECK_STEP_METERS = 1.0

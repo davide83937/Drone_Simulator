@@ -50,6 +50,7 @@ class MoveRobotServer(Node):
                 z_end=z_end, x_end=target_pos.x,
                 ang_start=angle_target, ang_end=angle_target
             )
+
     def difference_distance_compute(self, target_pos, angle_target, loop_counter):
         dx = target_pos.x - self.state.pos_x
         dy = target_pos.y - self.state.pos_z
