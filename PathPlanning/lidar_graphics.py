@@ -1,3 +1,5 @@
+from queue import Empty
+
 import numpy as np
 import open3d as o3d
 import Obstacle as ob
@@ -80,8 +82,6 @@ class Graphic_Visualizer:
         pcd.points = o3d.utility.Vector3dVector(coords)
         pcd.colors = o3d.utility.Vector3dVector(colors)
 
-
-
         # 3. Regola la grandezza dei punti in pixel sullo schermo
         self.vis.get_render_option().point_size = point_size
 
@@ -135,6 +135,34 @@ class Graphic_Visualizer:
         vc.set_lookat([-50.0, 15.0, -250.0])
         vc.set_zoom(0.5)
 
+    def update_lidar_points(self, points_np, color=(0.0, 0.0, 0.0)):
+        """Aggiorna i punti del LiDAR sostituendo quelli precedenti."""
+        if not hasattr(self, "lidar_pcd"):
+            self.lidar_pcd = o3d.geometry.PointCloud()
+            self.lidar_pcd.points = o3d.utility.Vector3dVector(points_np.astype(np.float64))
+            colors = np.tile(color, (len(points_np), 1)).astype(np.float64)
+            self.lidar_pcd.colors = o3d.utility.Vector3dVector(colors)
+            self.vis.add_geometry(self.lidar_pcd, reset_bounding_box=False)
+        else:
+            self.lidar_pcd.points = o3d.utility.Vector3dVector(points_np.astype(np.float64))
+            colors = np.tile(color, (len(points_np), 1)).astype(np.float64)
+            self.lidar_pcd.colors = o3d.utility.Vector3dVector(colors)
+            self.vis.update_geometry(self.lidar_pcd)
+
+    def loop(self, queue):
+        while self.vis.poll_events():
+            while True:
+                try:
+                    lidar_pts = queue.get_nowait()
+                    if len(lidar_pts) > 0:
+                        self.update_lidar_points(
+                            lidar_pts,
+                            color=(0.0, 0.0, 0.0)
+                        )
+                except Empty:
+                    break
+            self.vis.update_renderer()
+        self.close()
 
 
     def add_object(self, mesh):

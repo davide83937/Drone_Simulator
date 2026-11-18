@@ -2,9 +2,9 @@ from PathPlanning.Obstacle import ObstacleAABB
 
 # --- COSTANTI GLOBALI ---
 # Quote e altezze fisse
-PATH_Y = 0.0          # Quota costante del drone per Dijkstra
+PATH_Y = -35.0          # Quota costante del drone
 #LIDAR_Z = 35.0         # Quota costante per il LiDAR
-HEIGHT_OBSTACLE = 60.0 # Altezza verticale dei muri (Y per Dijkstra, Z per Lidar)
+HEIGHT_OBSTACLE = 60.0 # Altezza verticale dei muri
 DRONE_RADIUS = 5.0
 
 # --- LISTA MASTER DEGLI OSTACOLI ---

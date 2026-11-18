@@ -1,8 +1,11 @@
+import socket
+
+import numpy as np
+
 from PathPlanning.PantoPlanning import PantoPlanning, vertex
 from PathPlanning.getObstacles import get_obstacles_path_manager
 from PathPlanning.lidar_graphics import Graphic_Visualizer
-
-
+from PathPlanning.lidar_manager import Lidar_Server
 
 
 class PathManager:
@@ -20,7 +23,6 @@ class PathManager:
         for i in range(self.min_bound_x, self.max_bound_x, self.step):
             for j in range(self.min_bound_y, self.max_bound_y, self.step):
                 self.vertexes.append(vertex(i, 0,j))
-
     def check_vertexes(self):
         for vertex in self.vertexes:
             for obstacle in get_obstacles_path_manager():
@@ -31,6 +33,7 @@ class PathManager:
                     #print(f"Obstacle max: {obstacle.max_x}, {obstacle.max_y}, {obstacle.max_z}")
                     #print("\n")
                     vertex.free = False
+
 
     def search_vertexes(self, x, z):
         v = None
@@ -88,4 +91,6 @@ if __name__ == "__main__":
 
     #gv.select_points(pm.vertexes)
     gv.set_top_down_view()
-    gv.open_scene()
+    Lidar_Server = Lidar_Server()
+    Lidar_Server.start()
+    gv.loop(Lidar_Server.my_queue)

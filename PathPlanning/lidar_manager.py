@@ -1,41 +1,67 @@
 import math
-import struct
+import socket
+import signal
+import sys
+from threading import Thread, Event
+from queue import Queue
 import numpy as np
-from obstacle_config import ObstacleConfig
-from Obstacle import ObstacleAABB
+
+from my_math.rotation_matrixes import rot_yaw, rot_pitch, rot_roll
+
+UDP_IP = "127.0.0.1"
+UDP_PORT = 9999
+ANGLE=math.radians(180)
+
+class Lidar_Server(Thread):
+    def __init__(self, ip=UDP_IP, port=UDP_PORT):
+        # daemon=True: se il main thread muore, questo thread non blocca l'uscita
+        super().__init__(daemon=True)
+        self.ip = ip
+        self.port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.my_queue = Queue()
+        self._stop_event = Event()
+
+        # Intercetta CTRL-C / tasto Stop di PyCharm (SIGINT) e terminazione (SIGTERM)
+        # direttamente da dentro la classe!
+        signal.signal(signal.SIGINT, self._handle_exit)
+        signal.signal(signal.SIGTERM, self._handle_exit)
+
+    def _handle_exit(self, signum, frame):
+        self._stop_event.set()
+        self.close_socket()
+        sys.exit(0) # Fa terminare anche il main thread in modo pulito
+
+    def run(self):
+        try:
+            self.init_socket()
+            self.loop()
+        finally:
+            self.close_socket()
+
+    def init_socket(self):
+        self.sock.bind((self.ip, self.port))
+        # Usa settimeout invece di setblocking(False) per evitare BlockingIOError
+        self.sock.settimeout(0.5)
+
+    def loop(self):
+        while not self._stop_event.is_set():
+            try:
+                #print("Ricevuto")
+                data, _ = self.sock.recvfrom(65535)
+                lidar_pts = np.frombuffer(data, dtype=np.float32).reshape(-1, 3)
+                #print(len(lidar_pts))
+                rotated_points = lidar_pts@rot_yaw(ANGLE)@rot_roll(ANGLE)
+                self.my_queue.put(rotated_points)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+
+    def close_socket(self):
+        if self.sock.fileno() != -1:
+            self.sock.close()
+            print("Socket UDP chiuso.")
 
 
-
-class LidarManager:
-    def __init__(self, max_points=30000):
-        self.max_points = max_points if max_points is not None else ObstacleConfig.get_max_accumulated_points()
-        self.accumulated_points = np.zeros((0, 3))
-        self.tracked_obstacles = []
-        self.next_obstacle_id = 0
-        self.R_yaw = np.eye(3)
-
-        # Lista degli ostacoli statici noti
-
-
-    def update_rotation_matrix(self, theta):
-        cos_t, sin_t = np.cos(theta), np.sin(theta)
-        self.R_yaw = np.array([
-            [cos_t, -sin_t, 0],
-            [sin_t,  cos_t, 0],
-            [    0,      0, 1]
-        ])
-        return self.R_yaw
-
-    def lidar_points_extracting(self, num_floats, data, drone_pos):
-        if num_floats % 3 == 0:
-            floats = struct.unpack(f'<{num_floats}f', data)
-            local_points = np.array(floats).reshape(-1, 3)
-
-            rotated_points = local_points.dot(self.R_yaw.T)
-            absolute_points = rotated_points + drone_pos
-            self.accumulated_points = np.vstack((self.accumulated_points, absolute_points))
-
-            if len(self.accumulated_points) > self.max_points:
-                self.accumulated_points = self.accumulated_points[-self.max_points:]
-        return self.accumulated_points
 
