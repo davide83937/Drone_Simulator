@@ -47,7 +47,7 @@ class Lidar_Server(Thread):
     def loop(self):
         while not self._stop_event.is_set():
             try:
-                #print("Ricevuto")
+                #print("Ricevutoo")
                 data, _ = self.sock.recvfrom(65535)
                 lidar_pts = np.frombuffer(data, dtype=np.float32).reshape(-1, 3)
                 #print(len(lidar_pts))
