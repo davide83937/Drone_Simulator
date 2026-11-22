@@ -38,7 +38,7 @@ class MoveAxisClient(Node):
         self._action_client.wait_for_server()
 
         goal_msg = MoveAxis.Goal()
-        goal_msg.target_position = Vector3(x=target_x, y=target_y, z=target_z)
+        goal_msg._target_position = Vector3(x=target_x, y=target_y, z=target_z)
         goal_msg.target_rotation = math.radians(target_theta)
         self.get_logger().info(f'Invio goal: Target({target_x}, {target_y}, {target_z}) a rotazione {target_theta}')
 

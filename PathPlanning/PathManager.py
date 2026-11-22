@@ -23,6 +23,7 @@ class PathManager:
         for i in range(self.min_bound_x, self.max_bound_x, self.step):
             for j in range(self.min_bound_y, self.max_bound_y, self.step):
                 self.vertexes.append(vertex(i, 0,j))
+
     def check_vertexes(self):
         for vertex in self.vertexes:
             for obstacle in get_obstacles_path_manager():

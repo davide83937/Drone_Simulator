@@ -1,3 +1,5 @@
+import math
+
 from PathPlanning.getObstacles import get_obstacles_path_manager
 
 
@@ -26,10 +28,13 @@ class vertex:
     def delete_direction(self, direction):
         self.directions[direction] = False
 
-class segment:
-    def __init__(self, direction):
-        self.point_list = []
-        self.direction = direction
+class angle:
+    def __init__(self, angle):
+        self.angle = angle
+
+class altitude:
+    def __init__(self, altitude):
+        self.altitude = altitude
 
 class PantoPlanning:
     def __init__(self, path_manager ,start_vertex, end_vertex):
@@ -213,12 +218,48 @@ class PantoPlanning:
 
         self.list_vertex_path = new_path
 
+    def add_rotation_angles(self, initial_orientation):
+        new_path = [altitude(15)]
+
+        previous_angle = initial_orientation
+
+        for i in range(len(self.list_vertex_path) - 1):
+            current = self.list_vertex_path[i]
+            next_vertex = self.list_vertex_path[i + 1]
+
+            dx = next_vertex.x - current.x
+            dz = next_vertex.z - current.z
+
+            current_angle = math.degrees(math.atan2(dz, dx))
+
+            rotation = current_angle - previous_angle
+
+            # Normalizzazione tra -180 e +180 gradi
+            rotation = (rotation + 180) % 360 - 180
+
+            new_path.append(angle(rotation))
+            new_path.append(next_vertex)
+
+            previous_angle = current_angle
+
+        return new_path
+
 
 
     def run(self):
         self.build_path()
         self.free_path()
         self.smooth_path()
+        lista = self.add_rotation_angles(-90.0)
+        for i in lista:
+            if isinstance(i, vertex):
+                print(f"Punto: {i.x}, {i.y}, {i.z}")
+
+            elif isinstance(i, angle):
+                print(f"Rotazione: {i.angle}°")
+
+            elif isinstance(i, altitude):
+                print(f"Altitudine: {i.altitude} m")
 
 
 
