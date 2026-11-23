@@ -44,6 +44,8 @@ class PantoPlanning:
         self.start_vertex = start_vertex
         self.end_vertex = end_vertex
         self.path_manager = path_manager
+        self.list_commands = []
+
 
     def add_vertex_in_path(self, v):
         self.list_vertex_path.append(v)
@@ -218,7 +220,7 @@ class PantoPlanning:
 
         self.list_vertex_path = new_path
 
-    def add_rotation_angles(self, initial_orientation):
+    def add_rotation_angles_relative(self, initial_orientation):
         new_path = [altitude(15)]
 
         previous_angle = initial_orientation
@@ -242,7 +244,25 @@ class PantoPlanning:
 
             previous_angle = current_angle
 
-        return new_path
+        self.list_commands = new_path
+
+    def add_rotation_angles(self, initial_orientation=0.0):
+        new_path = [altitude(15)]
+
+        for i in range(len(self.list_vertex_path) - 1):
+            current = self.list_vertex_path[i]
+            next_vertex = self.list_vertex_path[i + 1]
+
+            dx = next_vertex.x - current.x
+            dz = next_vertex.z - current.z
+
+            target_angle = math.degrees(math.atan2(dx, -dz))
+            target_angle = (target_angle + 180) % 360 - 180
+
+            new_path.append(angle(target_angle))
+            new_path.append(next_vertex)
+
+        self.list_commands = new_path
 
 
 
@@ -250,8 +270,8 @@ class PantoPlanning:
         self.build_path()
         self.free_path()
         self.smooth_path()
-        lista = self.add_rotation_angles(-90.0)
-        for i in lista:
+        self.add_rotation_angles(0.0)
+        for i in self.list_commands:
             if isinstance(i, vertex):
                 print(f"Punto: {i.x}, {i.y}, {i.z}")
 

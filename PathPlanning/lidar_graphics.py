@@ -87,7 +87,26 @@ class Graphic_Visualizer:
 
         # 4. Aggiunge la nuvola di punti alla scena (un solo oggetto, zero lag)
         self.add_object(pcd)
+        self.grid_pcd = pcd
+        self.grid_coords = coords
+        self.grid_colors = colors
         return pcd
+
+    def highlight_grid_points_near(self, center_xyz, radius=10.0, color=(0.0, 0.5, 1.0), reset_others=False):
+        """Colora i punti della griglia entro un certo raggio da center_xyz (es. posizione del drone)."""
+        if not hasattr(self, "grid_pcd"):
+            return
+        if reset_others:
+            # Ripristina verde/rosso base se vuoi solo evidenziare la zona attuale
+            pass
+
+        c = np.asarray(center_xyz, dtype=np.float64).reshape(1, 3)
+        dists = np.linalg.norm(self.grid_coords - c, axis=1)
+        mask = dists <= radius
+        if np.any(mask):
+            self.grid_colors[mask] = np.asarray(color, dtype=np.float64)
+            self.grid_pcd.colors = o3d.utility.Vector3dVector(self.grid_colors)
+            self.vis.update_geometry(self.grid_pcd)
 
     def insert_path_lines(self, vertex_path, color=(0.0, 0.0, 1.0), line_width=5.0):
         if len(vertex_path) < 2:
@@ -149,7 +168,30 @@ class Graphic_Visualizer:
             self.lidar_pcd.colors = o3d.utility.Vector3dVector(colors)
             self.vis.update_geometry(self.lidar_pcd)
 
-    def loop(self, queue):
+    def update_point_cloud(self, vertexes, point_size=4.0):
+        color_free = (0.0, 1.0, 0.0)
+        color_blocked = (0.8, 0.2, 0.2)
+
+        coords = np.array([[v.x, v.y, v.z] for v in vertexes], dtype=np.float64)
+        colors = np.ascontiguousarray(
+            [color_free if v.free else color_blocked for v in vertexes],
+            dtype=np.float64
+        ).reshape(-1, 3)
+
+        if not hasattr(self, "grid_pcd") or self.grid_pcd is None:
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(coords)
+            pcd.colors = o3d.utility.Vector3dVector(colors)
+            self.vis.get_render_option().point_size = point_size
+            self.grid_pcd = pcd
+            self.add_object(pcd)
+        else:
+            self.grid_pcd.points = o3d.utility.Vector3dVector(coords)
+            self.grid_pcd.colors = o3d.utility.Vector3dVector(colors)
+            self.vis.get_render_option().point_size = point_size
+            self.vis.update_geometry(self.grid_pcd)
+
+    def loop(self, queue, change, list_vertex):
         while self.vis.poll_events():
             while True:
                 try:
@@ -159,6 +201,10 @@ class Graphic_Visualizer:
                             lidar_pts,
                             color=(0.0, 0.0, 0.0)
                         )
+                    if change[0]:
+                        self.update_point_cloud(list_vertex)
+                        change[0] = False
+
                 except Empty:
                     break
             self.vis.update_renderer()

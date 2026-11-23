@@ -13,14 +13,19 @@ UDP_PORT = 9999
 ANGLE=math.radians(180)
 
 class Lidar_Server(Thread):
-    def __init__(self, ip=UDP_IP, port=UDP_PORT):
+    def __init__(self, sender, lidar_processor, path_manager, ip=UDP_IP, port=UDP_PORT):
         # daemon=True: se il main thread muore, questo thread non blocca l'uscita
         super().__init__(daemon=True)
         self.ip = ip
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.my_queue = Queue()
+        self.change = []
+        self.change.append(False)
         self._stop_event = Event()
+        self.sender = sender
+        self.lidar_processor = lidar_processor
+        self.path_manager = path_manager
 
         # Intercetta CTRL-C / tasto Stop di PyCharm (SIGINT) e terminazione (SIGTERM)
         # direttamente da dentro la classe!
@@ -47,12 +52,28 @@ class Lidar_Server(Thread):
     def loop(self):
         while not self._stop_event.is_set():
             try:
-                #print("Ricevutoo")
                 data, _ = self.sock.recvfrom(65535)
                 lidar_pts = np.frombuffer(data, dtype=np.float32).reshape(-1, 3)
-                #print(len(lidar_pts))
-                rotated_points = lidar_pts@rot_yaw(ANGLE)@rot_roll(ANGLE)
-                self.my_queue.put(rotated_points)
+
+                # 1. Settaggio iniziale del sensore
+                pts = lidar_pts @ rot_yaw(ANGLE) @ rot_roll(ANGLE)
+
+                # 2. Orientamento (yaw in radianti) e posizione attuali del drone
+                yaw = float(self.sender.get_yaw())
+                pos = np.asarray(self.sender.get_pos(), dtype=np.float32).reshape(1, 3)
+                pos = pos[:, [0, 2, 1]]
+                pos[:, 1] *= -1.0
+
+                # Applica la rotazione di yaw e poi trasla nella posizione del drone
+                transformed_points = pts @ rot_yaw(-yaw).T + pos
+                transformed_points, cylinders = self.lidar_processor.process(transformed_points)
+
+                for cyl in cylinders:
+                    self.change[0] = self.path_manager.update_vertex_list_cylinder(cyl, margin=10.0)
+                    if self.change[0]:
+                        print("CAMBIAMENTO")
+
+                self.my_queue.put(transformed_points)
             except socket.timeout:
                 continue
             except OSError:

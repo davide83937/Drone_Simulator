@@ -31,30 +31,73 @@ class MoveRobotServer(Node):
     #    pass
 
 
-    def traslate_callback(self):
-        pass
+    def traslate_callback(self, goal_handle):
+        target_position = goal_handle.request.target_position
+        print(f'target_position: {target_position}')
+        self.launch_command_traslate(target_position.x, target_position.z)
+        result = TraslateCommand.Result()
+        while True:
+            dist = math.hypot(target_position.x - self.state.pos_x, target_position.z - self.state.pos_y)
+            if dist <= 5:
+                goal_handle.succeed()
+                result.success = True
+                return result
+            time.sleep(0.05)
+
 
     def stop_callback(self):
         pass
 
-    def unidimensional_callback(self):
-        pass
+    def unidimensional_callback(self, goal_handle):
+        target = goal_handle.request.target_value
 
-    def launch_command(self, is_rotation_only, angle_target, target_pos, z_end):
-        if is_rotation_only:
-            # SOLO ROTAZIONE: blocca X, Y, Z sulla posizione attuale, ruota verso angle_target
+        type = goal_handle.request.axis_type
+        result = UnidimensionalCommand.Result()
+        if type == 1: #ALTITUDE
+            self.launch_command_altitude(target)
+            while True:
+
+                if abs(target - self.state.pos_z) <= 0.50:
+
+                    goal_handle.succeed()
+                    result.success = True
+                    return result
+                time.sleep(0.05)
+        elif type == 2: #ROTATION
+            self.launch_command_rotation(target)
+            while True:
+                err = abs((target - self.state.yaw_magnetometer + 180.0) % 360.0 - 180.0)
+                if err <= 2.0:
+                    goal_handle.succeed()
+                    result.success = True
+                    return result
+                time.sleep(0.05)
+
+
+    def launch_command_traslate(self, target_x, target_y):
+            self.drone_control_scheme.start(
+                y_start=self.state.pos_z, y_end=self.state.pos_z,
+                z_start=-self.state.pos_y, x_start=self.state.pos_x,
+                z_end=-target_y, x_end=target_x,
+                ang_start=math.radians(self.state.yaw_magnetometer), ang_end=math.radians(self.state.yaw_magnetometer)
+            )
+
+    def launch_command_rotation(self, target_rotation):
+            target_rotation= math.radians(target_rotation)
+            print(f"target_rotation: {target_rotation}")
             self.drone_control_scheme.start(
                 y_start=self.state.pos_z, y_end=self.state.pos_z,
                 z_start=-self.state.pos_y, x_start=self.state.pos_x,
                 z_end=-self.state.pos_y, x_end=self.state.pos_x,
-                ang_start=self.state.yaw_magnetometer, ang_end=angle_target
+                ang_start=math.radians(self.state.yaw_magnetometer), ang_end=target_rotation,
             )
-        else:
-            # SOLO TRASLAZIONE: muove X, Y, Z verso il target, tiene fisso angle_target
+
+    def launch_command_altitude(self, target_altitude):
             self.drone_control_scheme.start(
-                y_start=self.state.pos_z, y_end=target_pos.y,
+                y_start=self.state.pos_z, y_end=target_altitude,
                 z_start=-self.state.pos_y, x_start=self.state.pos_x,
-                z_end=z_end, x_end=target_pos.x,
-                ang_start=angle_target, ang_end=angle_target
+                z_end=-self.state.pos_y, x_end=self.state.pos_x,
+                ang_start=math.radians(self.state.yaw_magnetometer), ang_end=math.radians(self.state.yaw_magnetometer),
             )
+
 

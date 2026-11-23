@@ -1,8 +1,36 @@
-import socket
+# --- 1. CONFIGURAZIONE AMBIENTE ROS 2 (DEVE ESSERE LA PRIMA COSA IN ABSOLUTE) ---
+import os
+
+from PathPlanning.lidar_processor import Lidar_Processor
+
+extra_dll_dirs = [
+    r"C:\Users\david\OneDrive\Desktop\ros2-windows\install\custom_interfaces\bin",
+    r"C:\Users\david\OneDrive\Desktop\ros2-windows\bin",
+    r"C:\Users\david\OneDrive\Desktop\ros2-windows\.pixi\envs\default\bin",
+    r"C:\Users\david\OneDrive\Desktop\ros2-windows\.pixi\envs\default\Library\bin",
+]
+
+for directory in extra_dll_dirs:
+    if os.path.isdir(directory):
+        os.add_dll_directory(directory)
+        os.environ["PATH"] = directory + os.pathsep + os.environ.get("PATH", "")
+
+prefix_path = (
+    r"C:\Users\david\OneDrive\Desktop\ros2-windows\install\custom_interfaces;"
+    r"C:\Users\david\OneDrive\Desktop\ros2-windows"
+)
+os.environ["AMENT_PREFIX_PATH"] = prefix_path  # Usa os.environ invece di setdefault per forzarlo
+# -----------------------------------------------------------------------------
+
+
+import threading
 
 import numpy as np
+from rclpy.executors import MultiThreadedExecutor
+import rclpy
 
 from PathPlanning.PantoPlanning import PantoPlanning, vertex
+from PathPlanning.WaypointSender import WaypointSender
 from PathPlanning.getObstacles import get_obstacles_path_manager
 from PathPlanning.lidar_graphics import Graphic_Visualizer
 from PathPlanning.lidar_manager import Lidar_Server
@@ -34,6 +62,35 @@ class PathManager:
                     #print(f"Obstacle max: {obstacle.max_x}, {obstacle.max_y}, {obstacle.max_z}")
                     #print("\n")
                     vertex.free = False
+
+    def update_vertex_list_cylinder(self, cylinder: dict, margin: float = 10.0):
+        """
+        Marca come non liberi (free = False) i vertici della griglia
+        che cadono dentro il cerchio (center_xz, radius) + margine di sicurezza.
+        Restituisce la lista dei vertici appena bloccati.
+        """
+        cx, cz = cylinder["center_xz"]
+        max_dist = float(cylinder["radius"]) + float(margin)
+        max_dist_sq = max_dist ** 2
+
+        change = False
+        for vertex in self.vertexes:
+            if vertex.free:
+                dx = vertex.x - cx
+                dz = vertex.z - cz
+                # Confrontiamo i quadrati per evitare la radice quadrata a ogni punto
+                if (dx * dx + dz * dz) <= max_dist_sq:
+                    vertex.free = False
+                    change = True
+        return change
+
+
+
+    def update_vertex_list(self, new_obstacle):
+        for vertex in self.vertexes:
+            if vertex.free:
+                    if vertex.x >= new_obstacle.min_x-10 and vertex.x <= new_obstacle.max_x+10 and vertex.z >= new_obstacle.min_z-10 and vertex.z <= new_obstacle.max_z+10:
+                        vertex.free = False
 
 
     def search_vertexes(self, x, z):
@@ -70,12 +127,11 @@ class PathManager:
 if __name__ == "__main__":
     pm = PathManager()
     start = vertex(0, 0, 0)
-    end = vertex(0, 0, -380)
+    end = vertex(25, 0, -405)
     pp = PantoPlanning(pm, start, end)
     pm.fill_vertexes_list()
     pm.check_vertexes()
     gv = Graphic_Visualizer()
-
     gv.insert_poligons(get_obstacles_path_manager())
     pp.run()
     pcd = gv.insert_point_cloud(pm.vertexes, point_size=2.0)
@@ -91,7 +147,20 @@ if __name__ == "__main__":
 
 
     #gv.select_points(pm.vertexes)
+    #gv.set_top_down_view()
+    rclpy.init()
+    sender = WaypointSender(pp)
+
+    lidar_processor = Lidar_Processor()
+    lidar_server = Lidar_Server(sender, lidar_processor, pm)
+    lidar_server.start()
+
+    executor = MultiThreadedExecutor()
+    executor.add_node(sender)
+
+    ros_thread = threading.Thread(target=executor.spin, daemon=True)
+    ros_thread.start()
+    sender.send_next_waypoint()
+
+    gv.loop(lidar_server.my_queue, lidar_server.change, pm.vertexes)
     gv.set_top_down_view()
-    Lidar_Server = Lidar_Server()
-    Lidar_Server.start()
-    gv.loop(Lidar_Server.my_queue)
