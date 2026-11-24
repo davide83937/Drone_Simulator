@@ -45,8 +45,16 @@ class MoveRobotServer(Node):
             time.sleep(0.05)
 
 
-    def stop_callback(self):
-        pass
+    def stop_callback(self, goal_handle):
+        target = goal_handle.request.emergency_stop
+        result = StopCommand.Result()
+        result.success = False
+        if target:
+            self.launch_command_stop()
+            goal_handle.succeed()
+            result = StopCommand.Result()
+            result.success = True
+        return result
 
     def unidimensional_callback(self, goal_handle):
         target = goal_handle.request.target_value
@@ -99,5 +107,14 @@ class MoveRobotServer(Node):
                 z_end=-self.state.pos_y, x_end=self.state.pos_x,
                 ang_start=math.radians(self.state.yaw_magnetometer), ang_end=math.radians(self.state.yaw_magnetometer),
             )
+
+    def launch_command_stop(self):
+            self.drone_control_scheme.start(
+                y_start=self.state.pos_z, y_end=self.state.pos_z,
+                z_start=-self.state.pos_y, x_start=self.state.pos_x,
+                z_end=-self.state.pos_y, x_end=self.state.pos_x,
+                ang_start=math.radians(self.state.yaw_magnetometer), ang_end=math.radians(self.state.yaw_magnetometer),
+            )
+
 
 

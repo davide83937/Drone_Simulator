@@ -46,6 +46,7 @@ class WaypointSender(Node):
         self.create_subscription(Vector3, 'drone_rotation', self.rot_callback, 10)
         self.panto_planning = panto_planning
         self.index = 0
+        self.index_traslate = 0
         self.drone_pos = np.array([0, 0, 0])
         self.drone_yaw = 0
 
@@ -69,10 +70,14 @@ class WaypointSender(Node):
         send_goal_future = self._action_traslate_client.send_goal_async(goal_msg)
         send_goal_future.add_done_callback(self._on_goal_accepted)
 
-
-
     def send_stop(self):
-        pass
+        self._action_stop_client.wait_for_server()
+        goal_msg = StopCommand.Goal()
+        goal_msg.emergency_stop = True
+        goal_msg.reason = ""
+        send_goal_future = self._action_stop_client.send_goal_async(goal_msg)
+        send_goal_future.add_done_callback(self._on_stop_accepted)
+
 
     def send_unidimensional(self, type, num):
         self._action_unidimensional_client.wait_for_server()
@@ -101,22 +106,42 @@ class WaypointSender(Node):
     def on_waypoint_unidimensional_completed(self):
         pass
 
+    def _on_stop_accepted(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            print("Goal rifiutato dal server!")
+            return
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self.on_handle_stop)
 
-    def on_handle_stop(self):
-        pass
+    def on_handle_stop(self, future):
+        pos = [self.drone_pos[0], self.drone_pos[2], self.drone_pos[1]]
+        print(f"posX={pos[0]}, posY={pos[1]}, posZ={pos[2]}")
+        #print("PUNTO AGGIUNTO")
+        self.panto_planning.process_recalculating(self.index_traslate, pos)
+        #self.send_next_waypoint()
 
     def send_next_waypoint(self):
         if isinstance(self.panto_planning.list_commands[self.index], vertex):
             self.send_traslate(self.panto_planning.list_commands[self.index].x, self.panto_planning.list_commands[self.index].z)
+            self.increment_index_traslate()
         elif isinstance(self.panto_planning.list_commands[self.index], angle):
             self.send_unidimensional("rotate", self.panto_planning.list_commands[self.index].angle)
         elif isinstance(self.panto_planning.list_commands[self.index], altitude):
             self.send_unidimensional("altitude", self.panto_planning.list_commands[self.index].altitude)
         self.increment_index()
 
+    def cylinder_found(self, cylinder):
+        detected = self.panto_planning.cylinder_found(cylinder, self.index_traslate-2)
+        if detected:
+            self.send_stop()
 
     def increment_index(self):
         self.index += 1
 
     def decrement_index(self):
         self.index -= 1
+
+    def increment_index_traslate(self):
+        self.index_traslate += 1
+

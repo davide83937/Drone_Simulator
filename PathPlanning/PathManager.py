@@ -131,7 +131,7 @@ if __name__ == "__main__":
     pp = PantoPlanning(pm, start, end)
     pm.fill_vertexes_list()
     pm.check_vertexes()
-    gv = Graphic_Visualizer()
+    gv = Graphic_Visualizer(pp)
     gv.insert_poligons(get_obstacles_path_manager())
     pp.run()
     pcd = gv.insert_point_cloud(pm.vertexes, point_size=2.0)

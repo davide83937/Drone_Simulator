@@ -71,6 +71,7 @@ class Lidar_Server(Thread):
                 for cyl in cylinders:
                     self.change[0] = self.path_manager.update_vertex_list_cylinder(cyl, margin=10.0)
                     if self.change[0]:
+                        self.sender.cylinder_found(cyl)
                         print("CAMBIAMENTO")
 
                 self.my_queue.put(transformed_points)

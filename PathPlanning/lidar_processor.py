@@ -6,8 +6,8 @@ class Lidar_Processor:
     def __init__(
         self,
         height_limit: float = -12.0,
-        voxel_size: float = 0.001,
-        eps: float = 5, #distanza massima entro cui due punti vengono considerati "vicini"
+        voxel_size: float = 0.1,
+        eps: float = 8, #distanza massima entro cui due punti vengono considerati "vicini"
         min_points: int = 10,
         min_radius: float = 2.5,
         max_radius: float = 6.0,
@@ -52,7 +52,7 @@ class Lidar_Processor:
         clusters = self.cluster_points(pts, eps=self.eps, min_points=self.min_points)
         if should_log:
             sizes = [len(c) for c in clusters]
-            print(f"[DEBUG] raw={n_raw} -> h={n_height} -> vox={n_voxel} -> clusters={len(clusters)} {sizes}")
+            #print(f"[DEBUG] raw={n_raw} -> h={n_height} -> vox={n_voxel} -> clusters={len(clusters)} {sizes}")
 
         cylinders = []
         for idx, c_pts in enumerate(clusters):
@@ -104,10 +104,10 @@ class Lidar_Processor:
     def is_cylinder(self, cluster_pts: np.ndarray, debug: bool = False, cluster_id: int = -1):
         if cluster_pts is None or len(cluster_pts) < self.min_points:
             if debug:
-                print(
+                """print(
                     f"  [C{cluster_id}] scartato: pochi punti "
                     f"({0 if cluster_pts is None else len(cluster_pts)} < {self.min_points})"
-                )
+                )"""
             return None
 
         u = cluster_pts[:, 0].astype(np.float64)
@@ -125,26 +125,26 @@ class Lidar_Processor:
 
         if not (self.min_radius <= radius <= self.max_radius):
             if debug:
-                print(
+                """print(
                     f"  [C{cluster_id}] scartato per raggio: R={radius:.3f} "
                     f"fuori [{self.min_radius}, {self.max_radius}], "
                     f"err={mean_err:.3f}, center=({cu:.2f}, {cv:.2f})"
-                )
+                )"""
             return None
 
         if mean_err > self.max_radial_err:
             if debug:
-                print(
+                """print(
                     f"  [C{cluster_id}] scartato per errore radiale: err={mean_err:.3f} > {self.max_radial_err}, "
                     f"R={radius:.3f}, center=({cu:.2f}, {cv:.2f})"
-                )
+                )"""
             return None
 
         if debug:
-            print(
+            """print(
                 f"  [C{cluster_id}] OK cilindro: R={radius:.3f}, "
                 f"err={mean_err:.3f}, center=({cu:.2f}, {cv:.2f})"
-            )
+            )"""
 
         return {
             "center_xz": (cu, cv),

@@ -12,6 +12,9 @@ class vertex:
         #self.directions = {'Ahead': True, 'Right': True, 'Back': True, 'Left': True}
         self.directions = {'Ahead': True, 'Left': True, 'Back': True, 'Right': True}
         self.index = 0
+        self.fake_mutex=True
+        self.change_path=[]
+        self.change_path.append(False)
 
     def delete_ahead(self):
         self.directions['Ahead'] = False
@@ -45,6 +48,9 @@ class PantoPlanning:
         self.end_vertex = end_vertex
         self.path_manager = path_manager
         self.list_commands = []
+        self.fake_mutex = True
+        self.change_path=[]
+        self.change_path.append(False)
 
 
     def add_vertex_in_path(self, v):
@@ -70,7 +76,10 @@ class PantoPlanning:
     def build_path(self):
         current_vertex = self.start_vertex
         self.list_vertex_path.append(current_vertex)
-        while (self.list_vertex_path[-1].x != self.end_vertex.x or self.list_vertex_path[-1].z != self.end_vertex.z):
+        while self.list_vertex_path and (
+                self.list_vertex_path[-1].x != self.end_vertex.x or
+                self.list_vertex_path[-1].z != self.end_vertex.z
+        ):
             current_vertex = self.list_vertex_path[-1]
             if(current_vertex.index < 4):
                 #print(f"Current {current_vertex.x}, {current_vertex.z}, {current_vertex.directions}")
@@ -280,6 +289,171 @@ class PantoPlanning:
 
             elif isinstance(i, altitude):
                 print(f"Altitudine: {i.altitude} m")
+
+    @staticmethod
+    def _segment_distance_and_hit(ax: float, az: float, bx: float, bz: float,
+                                  cx: float, cz: float, radius: float):
+        """Restituisce (interseca: bool, dist: float, t: float, closest_x: float, closest_z: float)."""
+        ab_x = bx - ax
+        ab_z = bz - az
+        ab_len_sq = ab_x * ab_x + ab_z * ab_z
+
+        if ab_len_sq == 0.0:
+            dist = math.hypot(cx - ax, cz - az)
+            return dist <= radius, dist, 0.0, float(ax), float(az)
+
+        t = ((cx - ax) * ab_x + (cz - az) * ab_z) / ab_len_sq
+        t = max(0.0, min(1.0, t))
+
+        closest_x = ax + t * ab_x
+        closest_z = az + t * ab_z
+        dist = math.hypot(cx - closest_x, cz - closest_z)
+        return dist <= radius, dist, t, closest_x, closest_z
+
+    def cylinder_found2(self, cylinder: dict, current_index: int, margin: float = 20.0) -> bool:
+        """Controlla se il cilindro interseca uno dei segmenti rimanenti da current_index."""
+        cx, cz = cylinder["center_xz"]
+        r = cylinder["radius"]
+        effective_radius = r + margin
+
+        print(
+            f"[DEBUG CYL] center=({cx:.2f}, {cz:.2f}), R={r:.2f}, margin={margin:.2f}, "
+            f"eff_R={effective_radius:.2f}, cmd_idx={current_index}, "
+            f"path_len={len(self.list_vertex_path)}, cmds_len={len(self.list_commands)}"
+        )
+
+        if not self.list_vertex_path or len(self.list_vertex_path) < 2:
+            print("[DEBUG CYL] list_vertex_path troppo corta o vuota")
+            return False
+
+        start_seg = max(0, (current_index - 1) // 2 - 1)
+        start_seg = min(start_seg, len(self.list_vertex_path) - 2)
+        print(f"[DEBUG CYL] controllo segmenti da {start_seg} a {len(self.list_vertex_path) - 2}")
+        self.hit_points = []
+        for i in range(start_seg, len(self.list_vertex_path) - 1):
+            a = self.list_vertex_path[i]
+            b = self.list_vertex_path[i + 1]
+            hit, dist, t, px, pz = self._segment_distance_and_hit(
+                a.x, a.z, b.x, b.z, cx, cz, effective_radius
+            )
+            print(
+                f"  [SEG {i}] ({a.x}, {a.z}) -> ({b.x}, {b.z}) | "
+                f"dist={dist:.2f} vs eff_R={effective_radius:.2f} | t={t:.2f} | hit={hit}"
+            )
+            if hit:
+                self.hit_points.append(i)
+                print(
+                    f"[COLLISIONE PERCORSO] Cilindro in ({cx:.2f}, {cz:.2f}) R={r:.2f} "
+                    f"interseca il segmento {i} ({a.x}, {a.z}) -> ({b.x}, {b.z}) "
+                    f"(cmd_index={current_index})"
+                )
+                return True
+
+        print("NON TOCCA")
+        return False
+
+    def cylinder_found(self, cylinder: dict, current_index: int, margin: float = 5.0) -> tuple[bool, list]:
+        """Controlla se il cilindro interseca segmenti e punti del percorso."""
+
+        cx, cz = cylinder["center_xz"]
+        r = cylinder["radius"]
+        effective_radius = r + margin
+
+        print(
+            f"[DEBUG CYL] center=({cx:.2f}, {cz:.2f}), R={r:.2f}, margin={margin:.2f}, "
+            f"eff_R={effective_radius:.2f}, cmd_idx={current_index}, "
+            f"path_len={len(self.list_vertex_path)}, cmds_len={len(self.list_commands)}"
+        )
+
+        if not self.list_vertex_path or len(self.list_vertex_path) < 2:
+            print("[DEBUG CYL] list_vertex_path troppo corta o vuota")
+            return False, []
+
+        start_seg = max(0, (current_index - 1) // 2 - 1)
+        start_seg = min(start_seg, len(self.list_vertex_path) - 2)
+
+        print(f"[DEBUG CYL] controllo segmenti da {start_seg} a {len(self.list_vertex_path) - 2}")
+
+        # 1. Controllo intersezione segmenti
+        segment_hit = False
+
+        for i in range(start_seg, len(self.list_vertex_path) - 1):
+            a = self.list_vertex_path[i]
+            b = self.list_vertex_path[i + 1]
+
+            hit, dist, t, px, pz = self._segment_distance_and_hit(
+                a.x, a.z, b.x, b.z, cx, cz, effective_radius
+            )
+
+            print(
+                f"  [SEG {i}] ({a.x}, {a.z}) -> ({b.x}, {b.z}) | "
+                f"dist={dist:.2f} vs eff_R={effective_radius:.2f} | t={t:.2f} | hit={hit}"
+            )
+
+            if hit:
+                segment_hit = True
+                print(
+                    f"[COLLISIONE PERCORSO] Cilindro in ({cx:.2f}, {cz:.2f}) R={r:.2f} "
+                    f"interseca il segmento {i} ({a.x}, {a.z}) -> ({b.x}, {b.z}) "
+                    f"(cmd_index={current_index})"
+                )
+
+        if not segment_hit:
+            print("NON TOCCA NESSUN SEGMENTO")
+
+        # 2. Controllo intersezione punti
+        self.overlapping_points = []
+
+        for i in range(start_seg, len(self.list_vertex_path)):
+            point = self.list_vertex_path[i]
+
+            dx = point.x - cx
+            dz = point.z - cz
+            dist = math.sqrt(dx ** 2 + dz ** 2)
+
+            hit = dist <= effective_radius
+
+            print(
+                f"  [POINT {i}] ({point.x}, {point.z}) | "
+                f"dist={dist:.2f} vs eff_R={effective_radius:.2f} | hit={hit}"
+            )
+
+            if hit:
+                self.overlapping_points.append(i)
+                print(f"[PUNTO INTERSECATO] Indice {i}: ({point.x}, {point.z})")
+
+        print(
+            f"[DEBUG CYL] segment_hit={segment_hit}, "
+            f"overlapping_points={self.overlapping_points}"
+        )
+
+        return segment_hit
+
+
+    def add_point(self, index, pos):
+
+        print(f"[DEBUG] add_point x:{pos[0]:.2f}, y:{0.0:.2f}, z:{pos[2]:.2f}")
+        v = vertex(pos[0], 0.0, pos[2])
+        self.list_vertex_path.insert(index+1, v)
+
+    def process_recalculating(self, index, pos):
+        if self.fake_mutex:
+            self.fake_mutex = False
+            self.list_vertex_path = [
+                vertex for i, vertex in enumerate(self.list_vertex_path)
+                if i not in self.overlapping_points
+            ]
+            self.add_point(index-1, pos)
+            print(f"NUOVA LUNGHEZZA {len(self.list_vertex_path)}")
+            for i in self.list_vertex_path:
+                print(f"Punto x={i.x:.2f}, y={i.y:.2f}, z={i.z:.2f}")
+
+            panto2 = PantoPlanning(self.path_manager, self.list_vertex_path[index-1], self.list_vertex_path[index])
+            panto2.build_path()
+            panto2.free_path()
+            self.list_vertex_path[index:index] = panto2.list_vertex_path[1:-1]
+            self.change_path[0]=True
+            self.fake_mutex = True
 
 
 

@@ -7,7 +7,7 @@ import Obstacle as ob
 
 
 class Graphic_Visualizer:
-    def __init__(self):
+    def __init__(self, pp):
         self.vis = o3d.visualization.Visualizer()
         self.size = 5000
         self.origin =[0,0,0]
@@ -15,6 +15,15 @@ class Graphic_Visualizer:
         self.vis.create_window(window_name="Map", width=1280, height=720)
         axes = o3d.geometry.TriangleMesh.create_coordinate_frame(size=30.0, origin=[0, 0, 0])
         self.vis.add_geometry(axes)
+        self.path_geometries = []
+        self.panto_planning = pp
+
+
+    def clear_path(self):
+        for geom in self.path_geometries:
+            self.vis.remove_geometry(geom, reset_bounding_box=False)
+        self.path_geometries.clear()
+        self.refresh()
 
     def create_poligon(self, obs:ob.ObstacleAABB, color=(0.8, 0.2, 0.2)):
         dx = obs.max_x - obs.min_x
@@ -149,9 +158,9 @@ class Graphic_Visualizer:
         # Il vettore 'front' indica dove si trova la telecamera rispetto al target (+Y = dall'alto)
         vc.set_front([0.0, -1.0, 0.0])
         # Il vettore 'up' indica cosa sta in alto sullo schermo (-Z = avanti nella mappa)
-        vc.set_up([1.0, 0.0, 0.0])
+        vc.set_up([0.0, -1.0, 0.0])
         # Punto centrale verso cui guarda la telecamera (centro approssimativo dei tuoi ostacoli)
-        vc.set_lookat([-50.0, 15.0, -250.0])
+        #vc.set_lookat([-50.0, 15.0, -250.0])
         vc.set_zoom(0.5)
 
     def update_lidar_points(self, points_np, color=(0.0, 0.0, 0.0)):
@@ -204,6 +213,21 @@ class Graphic_Visualizer:
                     if change[0]:
                         self.update_point_cloud(list_vertex)
                         change[0] = False
+                    if self.panto_planning.change_path[0]:
+                        self.clear_path()
+
+                        line_set = self.insert_path_lines(self.panto_planning.list_vertex_path, color=(1.0, 0.0, 0.0), line_width=5.0)
+                        if line_set is not None:
+                            self.path_geometries.append(line_set)
+
+                        for idx, v in enumerate(self.panto_planning.list_vertex_path):
+                            sphere = self.create_sphere(v.x, v.y, v.z, radius=1.0, color=(1.0, 0.0, 0.0))
+                            self.add_object(sphere)
+                            self.path_geometries.append(sphere)
+
+                            text_mesh = self.draw_text_3d(str(idx), v.x + 3, v.y, v.z, color=(1.0, 0.0, 0.0), scale=0.1)
+                            self.path_geometries.append(text_mesh)
+                        self.panto_planning.change_path[0]=False
 
                 except Empty:
                     break
