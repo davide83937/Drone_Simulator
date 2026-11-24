@@ -65,7 +65,7 @@ class PathManager:
 
     def update_vertex_list_cylinder(self, cylinder: dict, margin: float = 10.0):
         """
-        Marca come non liberi (free = False) i vertici della griglia
+        Marca come non liberi (free = False) i vertici della grigliaa
         che cadono dentro il cerchio (center_xz, radius) + margine di sicurezza.
         Restituisce la lista dei vertici appena bloccati.
         """
