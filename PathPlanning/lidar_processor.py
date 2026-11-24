@@ -5,13 +5,13 @@ import time
 class Lidar_Processor:
     def __init__(
         self,
-        height_limit: float = -12.0,
-        voxel_size: float = 0.1,
-        eps: float = 8, #distanza massima entro cui due punti vengono considerati "vicini"
-        min_points: int = 10,
+        height_limit: float = -10.0,
+        voxel_size: float = 0.001,
+        eps: float = 10, #distanza massima entro cui due punti vengono considerati "vicini"
+        min_points: int = 5,
         min_radius: float = 2.5,
         max_radius: float = 6.0,
-        max_radial_err: float = 1.9,
+        max_radial_err: float = 10.9,
     ):
         self.height_limit = height_limit
         self.voxel_size = voxel_size

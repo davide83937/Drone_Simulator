@@ -60,16 +60,19 @@ class Lidar_Server(Thread):
 
                 # 2. Orientamento (yaw in radianti) e posizione attuali del drone
                 yaw = float(self.sender.get_yaw())
+                pitch = float(self.sender.get_pitch())
+                roll = float(self.sender.get_roll())
                 pos = np.asarray(self.sender.get_pos(), dtype=np.float32).reshape(1, 3)
                 pos = pos[:, [0, 2, 1]]
                 pos[:, 1] *= -1.0
 
                 # Applica la rotazione di yaw e poi trasla nella posizione del drone
                 transformed_points = pts @ rot_yaw(-yaw).T + pos
+                transformed_points = transformed_points @ rot_pitch(pitch) #@ rot_roll(roll)
                 transformed_points, cylinders = self.lidar_processor.process(transformed_points)
 
                 for cyl in cylinders:
-                    self.change[0] = self.path_manager.update_vertex_list_cylinder(cyl, margin=10.0)
+                    self.change[0] = self.path_manager.update_vertex_list_cylinder(cyl, margin=5.0)
                     if self.change[0]:
                         self.sender.cylinder_found(cyl)
                         print("CAMBIAMENTO")

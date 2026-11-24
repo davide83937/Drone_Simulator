@@ -45,6 +45,21 @@ class PathManager:
         self.max_bound_y = 100
         self.step = 5
 
+    def find_nearest_vertex(self, x, z, only_free=True):
+        nearest = None
+        min_dist = float('inf')
+
+        for v in self.vertexes:
+            if only_free and not v.free:
+                continue
+
+            dist = (v.x - x) ** 2 + (v.z - z) ** 2
+
+            if dist < min_dist:
+                min_dist = dist
+                nearest = v
+
+        return nearest
 
 
     def fill_vertexes_list(self):
@@ -63,7 +78,7 @@ class PathManager:
                     #print("\n")
                     vertex.free = False
 
-    def update_vertex_list_cylinder(self, cylinder: dict, margin: float = 10.0):
+    def update_vertex_list_cylinder(self, cylinder: dict, margin: float = 5.0):
         """
         Marca come non liberi (free = False) i vertici della grigliaa
         che cadono dentro il cerchio (center_xz, radius) + margine di sicurezza.
@@ -84,13 +99,45 @@ class PathManager:
                     change = True
         return change
 
+    def update_vertex_list(self, plane: dict, margin: float = 5.0):
+        """
+        Marca come non liberi (free = False) i vertici della griglia che cadono
+        entro `margin` dal segmento del muro (proiettato sul piano XZ).
+        Restituisce True se almeno un vertice è stato bloccato.
+        """
+        # Pavimento/soffitto: nessun muro verticale da evitare
+        if plane.get("length", 0.0) <= 1e-9:
+            return False
 
+        # Il muro è alto sotto l'altezza di volo? Qui lo consideriamo sempre un ostacolo.
+        ax, _, az = plane["wall_start"]
+        bx, _, bz = plane["wall_end"]
 
-    def update_vertex_list(self, new_obstacle):
+        abx = bx - ax
+        abz = bz - az
+        ab_len_sq = abx * abx + abz * abz
+        if ab_len_sq <= 1e-12:
+            return False
+
+        margin_sq = float(margin) ** 2
+
+        change = False
         for vertex in self.vertexes:
-            if vertex.free:
-                    if vertex.x >= new_obstacle.min_x-10 and vertex.x <= new_obstacle.max_x+10 and vertex.z >= new_obstacle.min_z-10 and vertex.z <= new_obstacle.max_z+10:
-                        vertex.free = False
+            if not vertex.free:
+                continue
+
+            # Proiezione del vertice sul segmento, con t limitato a [0, 1]
+            t = ((vertex.x - ax) * abx + (vertex.z - az) * abz) / ab_len_sq
+            t = max(0.0, min(1.0, t))
+            px = ax + t * abx
+            pz = az + t * abz
+
+            dx = vertex.x - px
+            dz = vertex.z - pz
+            if (dx * dx + dz * dz) <= margin_sq:
+                vertex.free = False
+                change = True
+        return change
 
 
     def search_vertexes(self, x, z):

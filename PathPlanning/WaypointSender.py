@@ -49,6 +49,8 @@ class WaypointSender(Node):
         self.index_traslate = 0
         self.drone_pos = np.array([0, 0, 0])
         self.drone_yaw = 0
+        self.drone_roll = 0
+        self.drone_pitch = 0
 
 
     def pos_callback(self, msg):
@@ -57,10 +59,20 @@ class WaypointSender(Node):
     def rot_callback(self, msg):
         self.drone_yaw = np.radians(msg.z)
 
+    def roll_callback(self, msg):
+        self.drone_roll = np.radians(msg.z)
+
+    def pitch_callback(self, msg):
+        self.drone_pitch = np.radians(msg.z)
+
     def get_pos(self):
         return self.drone_pos
     def get_yaw(self):
         return self.drone_yaw
+    def get_roll(self):
+        return self.drone_roll
+    def get_pitch(self):
+        return self.drone_pitch
 
     def send_traslate(self, x, z):
         self._action_traslate_client.wait_for_server()
@@ -69,6 +81,7 @@ class WaypointSender(Node):
         print(f"Sending traslate command: x={x}, z={z}")
         send_goal_future = self._action_traslate_client.send_goal_async(goal_msg)
         send_goal_future.add_done_callback(self._on_goal_accepted)
+
 
     def send_stop(self):
         self._action_stop_client.wait_for_server()
@@ -119,7 +132,7 @@ class WaypointSender(Node):
         print(f"posX={pos[0]}, posY={pos[1]}, posZ={pos[2]}")
         #print("PUNTO AGGIUNTO")
         self.panto_planning.process_recalculating(self.index_traslate, pos)
-        #self.send_next_waypoint()
+        self.send_next_waypoint()
 
     def send_next_waypoint(self):
         if isinstance(self.panto_planning.list_commands[self.index], vertex):

@@ -34,6 +34,7 @@ from control_scheme import state
 from control_scheme import control_scheme
 from sharedState import current_state
 from geometry_msgs.msg import Vector3
+from std_msgs.msg import Float32, Float64
 
 
 rclpy.init(args=None)
@@ -91,7 +92,8 @@ t.start()
 state_pub_node = rclpy.create_node('state_publisher')
 pos_publisher = state_pub_node.create_publisher(Vector3, 'drone_position', 10)
 rot_publisher = state_pub_node.create_publisher(Vector3, 'drone_rotation', 10)
-
+roll_publisher = state_pub_node.create_publisher(Float64, 'roll', 10)
+pitch_publisher = state_pub_node.create_publisher(Float64, 'pitch', 10)
 try:
     while True:
         dds.wait('tick')
@@ -173,6 +175,12 @@ try:
         # Mappiamo lo yaw sull'asse Z del Vector3 (convenzione standard ROS per la rotazione orizzontale)
         rot_msg.z = float(yaw)
         rot_publisher.publish(rot_msg)
+        msg = Float64()
+        msg.data = float(roll)
+        roll_publisher.publish(msg)
+        msg1 = Float64()
+        msg1.data = float(pitch)
+        pitch_publisher.publish(msg1)
         # ------------------------------------------------------
 
         #print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}")
